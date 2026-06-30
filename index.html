@@ -1,0 +1,1049 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Livance — Portal do Corpo Clínico</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap');
+
+  :root {
+    --orange: #F0A93C;
+    --orange-dark: #E0982A;
+    --petrol: #1E4654;
+    --petrol-dark: #163540;
+    --bg: #F4F4F4;
+    --surface: #FFFFFF;
+    --line: #E4E4E4;
+    --text: #2B2B2B;
+    --text-soft: #6B6B6B;
+    --text-faint: #9A9A9A;
+    --link: #2E6DA4;
+    --green: #3C9A5F;
+    --red: #C0392B;
+    --warn-soft: #FBEDE6;
+    --warn-dark: #A14A1E;
+    --sidebar-w: 210px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Roboto', Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  .app { display: flex; min-height: 100vh; }
+
+  /* ---------- Sidebar ---------- */
+  .sidebar {
+    width: var(--sidebar-w);
+    background: var(--orange);
+    flex-shrink: 0;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .sidebar-profile {
+    text-align: center;
+    padding: 28px 16px 18px;
+  }
+  .avatar-circle {
+    width: 76px; height: 76px;
+    border-radius: 50%;
+    background: #FFFFFF;
+    margin: 0 auto 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-faint);
+    font-size: 11px;
+    text-align: center;
+    line-height: 1.3;
+    border: 1px solid #eee;
+  }
+  .profile-name {
+    color: var(--petrol-dark);
+    font-weight: 700;
+    font-size: 13.5px;
+  }
+
+  .nav { background: var(--surface); flex: 1; padding-top: 4px; }
+  .nav-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 12px 18px;
+    color: var(--text-soft);
+    font-size: 13.5px;
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    width: 100%;
+    text-align: left;
+    font-family: inherit;
+    border-bottom: 1px solid var(--line);
+  }
+  .nav-item .left { display: flex; align-items: center; gap: 10px; }
+  .nav-item .icon { width: 16px; text-align: center; font-size: 14px; color: var(--text-faint); }
+  .nav-item:hover { background: #FAFAFA; color: var(--text); }
+  .nav-item.active { color: var(--petrol-dark); font-weight: 700; background: #FAFAFA; }
+  .nav-item.active .icon { color: var(--petrol-dark); }
+  .nav-item .chev { font-size: 11px; color: var(--text-faint); }
+
+  .main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+
+  /* ---------- Topbar ---------- */
+  .topbar {
+    background: var(--petrol);
+    padding: 14px 28px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .topbar-left { display: flex; align-items: center; gap: 18px; color: #fff; }
+  .hamburger { font-size: 18px; cursor: pointer; }
+  .topbar-right { display: flex; align-items: center; gap: 18px; color: #fff; font-size: 13.5px; }
+  .topbar-icon { position: relative; font-size: 17px; cursor: pointer; }
+  .logout-icon { font-size: 16px; }
+  .badge-count {
+    position: absolute; top: -8px; right: -10px;
+    background: var(--red); color: #fff;
+    font-size: 10px; font-weight: 700;
+    padding: 1px 5px; border-radius: 8px;
+  }
+
+  .avisos-panel {
+    position: absolute;
+    top: 52px;
+    left: 28px;
+    width: 320px;
+    background: var(--surface);
+    border-radius: 6px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.18);
+    z-index: 50;
+    overflow: hidden;
+  }
+  .avisos-header {
+    padding: 14px 18px;
+    background: var(--petrol);
+    color: #fff;
+    font-size: 13.5px;
+    font-weight: 700;
+  }
+  .aviso-item {
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--line);
+  }
+  .aviso-item:last-child { border-bottom: none; }
+  .aviso-title { font-size: 13px; font-weight: 700; color: var(--petrol-dark); margin-bottom: 3px; }
+  .aviso-text { font-size: 12.5px; color: var(--text-soft); line-height: 1.5; }
+  .aviso-date { font-size: 11px; color: var(--text-faint); margin-top: 6px; }
+
+  /* ---------- Content ---------- */
+  .content { padding: 26px 32px 60px; flex: 1; }
+
+  .page-title {
+    font-size: 24px;
+    font-weight: 400;
+    color: var(--orange-dark);
+    margin-bottom: 6px;
+  }
+  .breadcrumb { font-size: 12.5px; color: var(--text-faint); margin-bottom: 22px; }
+  .breadcrumb a { color: var(--link); text-decoration: none; }
+  .breadcrumb .current { color: var(--text-soft); font-weight: 500; }
+
+  /* ---------- Filter / form controls ---------- */
+  .field-label { font-size: 12.5px; color: var(--text-soft); font-weight: 500; margin-bottom: 6px; }
+  select, input[type="text"], input[type="date"] {
+    font-family: inherit;
+    font-size: 13.5px;
+    padding: 9px 12px;
+    border: 1px solid #D6D6D6;
+    border-radius: 4px;
+    background: var(--surface);
+    color: var(--text);
+  }
+  select:focus, input:focus { outline: none; border-color: var(--petrol); }
+
+  .filter-row { display: flex; gap: 14px; margin-bottom: 18px; flex-wrap: wrap; align-items: flex-end; }
+  .filter-field { flex: 1; min-width: 180px; }
+  .filter-field.wide { flex: 2; min-width: 280px; }
+  .filter-field select, .filter-field input { width: 100%; }
+
+  .toolbar-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 18px;
+  }
+
+  .btn {
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    padding: 9px 16px;
+    border-radius: 4px;
+    border: 1px solid #D6D6D6;
+    background: var(--surface);
+    color: var(--text-soft);
+    cursor: pointer;
+  }
+  .btn:hover { background: #FAFAFA; }
+  .btn.primary { background: var(--petrol); color: #fff; border-color: var(--petrol); }
+  .btn.primary:hover { background: var(--petrol-dark); }
+  .btn-icon { margin-right: 6px; }
+
+  /* ---------- Month tabs ---------- */
+  .month-tabs {
+    background: var(--orange);
+    display: flex;
+    border-radius: 4px 4px 0 0;
+    overflow-x: auto;
+  }
+  .month-tab {
+    flex: 1;
+    min-width: 110px;
+    text-align: center;
+    padding: 16px 10px;
+    font-size: 13px;
+    font-weight: 700;
+    color: rgba(43,43,43,0.55);
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    font-family: inherit;
+    white-space: nowrap;
+  }
+  .month-tab .sub { display: block; font-size: 10px; font-weight: 500; margin-top: 2px; }
+  .month-tab.active { background: var(--surface); color: var(--orange-dark); }
+
+  /* ---------- Movements layout ---------- */
+  .mov-layout { display: flex; gap: 24px; align-items: flex-start; }
+  .mov-table-wrap { flex: 1; background: var(--surface); border: 1px solid var(--line); border-top: none; }
+
+  table { width: 100%; border-collapse: collapse; }
+  thead th {
+    text-align: left;
+    font-size: 12.5px;
+    font-weight: 700;
+    color: var(--petrol-dark);
+    padding: 16px 20px 10px;
+    border-bottom: 1px solid var(--line);
+  }
+  tbody td {
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--line);
+    font-size: 13.5px;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: #FAFAFA; }
+
+  .val { font-weight: 700; color: var(--text); }
+  .val.neg { color: var(--red); }
+  .val.pos { color: var(--text); }
+  .edit-icon { color: var(--text-faint); margin-left: 8px; cursor: pointer; font-size: 13px; }
+
+  .doc-cell { font-weight: 500; }
+  .doc-cell .crm { display: block; font-size: 11.5px; color: var(--text-faint); font-weight: 400; margin-top: 2px; }
+
+  .credit-card {
+    width: 260px;
+    flex-shrink: 0;
+    background: var(--surface);
+    border: 2px solid var(--petrol);
+    border-radius: 4px;
+    padding: 22px;
+    text-align: center;
+  }
+  .credit-label { font-size: 12.5px; color: var(--text-soft); margin-bottom: 6px; }
+  .credit-value { font-size: 26px; font-weight: 700; color: var(--green); margin-bottom: 8px; }
+  .credit-value.due { color: var(--red); }
+  .credit-due { font-size: 12px; color: var(--text-soft); }
+  .credit-due b { color: var(--text); }
+
+  .empty-state { padding: 48px 24px; text-align: center; color: var(--text-faint); font-size: 13px; background: var(--surface); }
+
+  /* ---------- Other screens reuse table styles ---------- */
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 4px; }
+  .metric-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; margin-bottom: 22px; }
+  .metric-card { background: var(--surface); border: 1px solid var(--line); border-radius: 4px; padding: 16px 18px; }
+  .metric-label { font-size: 11.5px; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.3px; margin-bottom: 8px; }
+  .metric-value { font-size: 22px; font-weight: 700; color: var(--petrol-dark); }
+  .metric-sub { font-size: 12px; color: var(--text-soft); margin-top: 4px; }
+  .metric-sub.warn { color: var(--red); }
+
+  .form-card { padding: 22px; margin-bottom: 18px; }
+  .form-section-title { font-size: 13.5px; font-weight: 700; margin-bottom: 14px; color: var(--petrol-dark); }
+  .form-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 14px; }
+  .form-field label { display: block; font-size: 11.5px; color: var(--text-soft); margin-bottom: 5px; }
+  .form-field input { width: 100%; background: #F7F7F7; color: var(--text-soft); }
+
+  .pill { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border-radius: 99px; font-size: 11.5px; font-weight: 500; }
+  .pill::before { content: ''; width: 6px; height: 6px; border-radius: 50%; }
+  .pill.ok { background: #E7F5EC; color: var(--green); }
+  .pill.ok::before { background: var(--green); }
+  .pill.neutral { background: #EFEFEF; color: var(--text-soft); }
+  .pill.neutral::before { background: var(--text-faint); }
+  .pill.warn { background: var(--warn-soft); color: var(--warn-dark); }
+  .pill.warn::before { background: var(--warn-dark); }
+
+  .download-link { font-size: 12.5px; color: var(--link); cursor: pointer; font-weight: 500; }
+  .download-link:hover { text-decoration: underline; }
+
+  .form-field.locked input { background: #F0F0F0; }
+  .locked-hint {
+    display: block;
+    font-size: 11px;
+    color: var(--link);
+    margin-top: 5px;
+    cursor: pointer;
+  }
+  .locked-hint:hover { text-decoration: underline; }
+
+  /* ---------- Solicitações ---------- */
+  .tickets-layout { display: flex; gap: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 4px; min-height: 520px; overflow: hidden; }
+  .tickets-list { width: 320px; flex-shrink: 0; border-right: 1px solid var(--line); }
+  .tickets-list-header { padding: 16px 18px; border-bottom: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between; }
+  .tickets-list-title { font-size: 13.5px; font-weight: 700; color: var(--petrol-dark); }
+  .ticket-item { padding: 14px 18px; border-bottom: 1px solid var(--line); cursor: pointer; }
+  .ticket-item:hover { background: #FAFAFA; }
+  .ticket-item.active { background: #FFF4E2; }
+  .ticket-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+  .ticket-subject { font-size: 13px; font-weight: 700; color: var(--text); }
+  .ticket-meta { font-size: 11.5px; color: var(--text-faint); }
+  .ticket-preview { font-size: 12px; color: var(--text-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  .status-tag { font-size: 10.5px; font-weight: 700; padding: 2px 8px; border-radius: 99px; text-transform: uppercase; letter-spacing: 0.3px; }
+  .status-tag.aberto { background: #FFF1DC; color: var(--orange-dark); }
+  .status-tag.encerrado { background: #E7F5EC; color: var(--green); }
+
+  .ticket-chat { flex: 1; display: flex; flex-direction: column; }
+  .ticket-chat-header { padding: 16px 20px; border-bottom: 1px solid var(--line); }
+  .ticket-chat-subject { font-size: 14.5px; font-weight: 700; color: var(--petrol-dark); margin-bottom: 4px; }
+  .ticket-chat-tags { display: flex; gap: 8px; align-items: center; font-size: 11.5px; color: var(--text-faint); }
+
+  .chat-messages { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; }
+  .chat-msg { max-width: 78%; }
+  .chat-msg.clinica { align-self: flex-end; }
+  .chat-msg.gestao { align-self: flex-start; }
+  .chat-bubble { padding: 11px 14px; border-radius: 10px; font-size: 13px; line-height: 1.5; }
+  .chat-msg.clinica .chat-bubble { background: var(--petrol); color: #fff; border-bottom-right-radius: 2px; }
+  .chat-msg.gestao .chat-bubble { background: #F0F0F0; color: var(--text); border-bottom-left-radius: 2px; }
+  .chat-meta { font-size: 10.5px; color: var(--text-faint); margin-top: 4px; }
+  .chat-msg.clinica .chat-meta { text-align: right; }
+  .chat-attach { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; margin-top: 6px; opacity: 0.9; }
+
+  .chat-input-row { padding: 14px 20px; border-top: 1px solid var(--line); display: flex; gap: 10px; align-items: center; }
+  .chat-input-row input[type="text"] { flex: 1; }
+  .attach-btn { font-size: 17px; color: var(--text-faint); cursor: pointer; }
+
+  .empty-chat { flex: 1; display: flex; align-items: center; justify-content: center; color: var(--text-faint); font-size: 13px; }
+
+  .login-screen { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: var(--petrol); }
+  .login-card { background: var(--surface); border-radius: 6px; padding: 40px 36px; width: 360px; }
+  .login-mark { font-size: 22px; font-weight: 700; color: var(--orange-dark); margin-bottom: 2px; letter-spacing: 1.5px; }
+  .login-sub { font-size: 12px; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 28px; }
+  .login-field { margin-bottom: 14px; }
+  .login-field label { display: block; font-size: 12px; color: var(--text-soft); margin-bottom: 6px; }
+  .login-field input { width: 100%; padding: 10px 12px; font-size: 13.5px; }
+  .login-btn { width: 100%; margin-top: 8px; padding: 11px; font-size: 13.5px; }
+  .login-foot { margin-top: 22px; font-size: 11px; color: var(--text-faint); text-align: center; line-height: 1.6; }
+
+  .profile-tabs { display: flex; gap: 0; margin-bottom: 22px; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+  .profile-tab {
+    flex: 1;
+    padding: 9px 8px;
+    font-family: inherit;
+    font-size: 12.5px;
+    font-weight: 500;
+    border: none;
+    background: var(--bg);
+    color: var(--text-soft);
+    cursor: pointer;
+  }
+  .profile-tab.active { background: var(--petrol); color: #fff; }
+
+  .gestor-only-tag {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    background: var(--petrol-dark);
+    color: #fff;
+    padding: 2px 8px;
+    border-radius: 99px;
+    margin-left: 8px;
+    vertical-align: middle;
+  }
+  .gestor-hint { font-size: 11.5px; color: var(--text-faint); margin-top: 8px; line-height: 1.5; }
+  .action-link { font-size: 12px; color: var(--link); cursor: pointer; margin-right: 10px; }
+  .action-link:hover { text-decoration: underline; }
+  .action-link.danger { color: var(--red); }
+
+  .doc-totals-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+  .doc-total-card { background: var(--surface); border: 1px solid var(--line); border-radius: 4px; padding: 13px 16px; display: flex; align-items: center; justify-content: space-between; }
+  .doc-total-label { font-size: 12.5px; color: var(--text-soft); font-weight: 500; }
+  .doc-total-value { font-size: 17px; font-weight: 700; color: var(--petrol-dark); }
+
+  .overdue-banner {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--warn-soft);
+    border: 1px solid #F0D2C0;
+    border-radius: 6px;
+    padding: 14px 18px;
+    margin-bottom: 18px;
+    cursor: pointer;
+  }
+  .overdue-banner:hover { border-color: var(--orange-dark); }
+  .overdue-banner .icon { font-size: 18px; }
+  .overdue-banner .text { flex: 1; font-size: 13px; color: var(--text); }
+  .overdue-banner .text b { color: var(--warn-dark); }
+  .overdue-banner .cta { font-size: 12.5px; font-weight: 700; color: var(--link); white-space: nowrap; }
+
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<!-- ===================== LOGIN ===================== -->
+<div id="login-screen" class="login-screen">
+  <div class="login-card">
+    <div class="login-mark">LIVANCE</div>
+    <div class="login-sub">Sistema Financeiro</div>
+
+    <div class="profile-tabs">
+      <button class="profile-tab active" id="tab-clinica" onclick="setProfileTab('clinica')">Sou clínica</button>
+      <button class="profile-tab" id="tab-gestor" onclick="setProfileTab('gestor')">Sou gestor Livance</button>
+    </div>
+
+    <div id="login-fields-clinica">
+      <div class="login-field"><label>CNPJ</label><input type="text" value="12.345.678/0001-90"></div>
+      <div class="login-field"><label>Senha</label><input type="text" value="••••••••"></div>
+    </div>
+    <div id="login-fields-gestor" class="hidden">
+      <div class="login-field"><label>E-mail Livance</label><input type="text" value="marina.gestao@livance.com.br"></div>
+      <div class="login-field"><label>Senha</label><input type="text" value="••••••••"></div>
+    </div>
+
+    <button class="btn primary login-btn" onclick="enterApp()">Entrar</button>
+    <div class="login-foot" id="login-foot-text">Ambiente do corpo clínico cadastrado na Livance.<br>Protótipo — dados fictícios.</div>
+  </div>
+</div>
+
+<!-- ===================== APP ===================== -->
+<div class="app hidden" id="app">
+  <div class="sidebar">
+    <div class="sidebar-profile">
+      <div class="avatar-circle">IMAGEM<br>NÃO DISPONÍVEL</div>
+      <div class="profile-name" id="sidebar-profile-name">Clínica Vitalis Saúde</div>
+    </div>
+    <div class="nav">
+      <button class="nav-item active" data-view="overview" onclick="setView('overview')">
+        <span class="left"><span class="icon">&#8962;</span> Home</span>
+      </button>
+      <button class="nav-item" data-view="cadastro" onclick="setView('cadastro')">
+        <span class="left"><span class="icon">&#9633;</span> Cadastro</span>
+      </button>
+      <button class="nav-item" data-view="medicos" onclick="setView('medicos')">
+        <span class="left"><span class="icon">&#9679;</span> Profissionais</span>
+      </button>
+      <button class="nav-item" data-view="movimentacao" onclick="setView('movimentacao')">
+        <span class="left"><span class="icon">&#8645;</span> Movimentações</span>
+      </button>
+      <button class="nav-item" data-view="financeiro" onclick="setView('financeiro')">
+        <span class="left"><span class="icon">&#9783;</span> Financeiro</span> <span class="chev">›</span>
+      </button>
+      <button class="nav-item" data-view="solicitacoes" onclick="setView('solicitacoes')">
+        <span class="left"><span class="icon">&#9993;</span> Solicitações</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="topbar" style="position: relative;">
+      <div class="topbar-left">
+        <span class="topbar-icon" onclick="toggleAvisos()" title="Avisos">&#128276;<span class="badge-count" id="avisos-count">2</span></span>
+      </div>
+      <div class="topbar-right">
+        <span>Olá Clínica Vitalis !</span>
+        <span class="topbar-icon logout-icon" onclick="logout()" title="Sair">&#9211;</span>
+      </div>
+
+      <div class="avisos-panel hidden" id="avisos-panel">
+        <div class="avisos-header">Avisos da Livance</div>
+        <div class="aviso-item">
+          <div class="aviso-title">Manutenção programada</div>
+          <div class="aviso-text">A unidade Alphaville ficará fechada para manutenção no dia 05/07.</div>
+          <div class="aviso-date">28 jun, 2026</div>
+        </div>
+        <div class="aviso-item">
+          <div class="aviso-title">Atualização de boletos</div>
+          <div class="aviso-text">Os boletos de julho já estão disponíveis na aba Financeiro.</div>
+          <div class="aviso-date">26 jun, 2026</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- ============ HOME / VISÃO GERAL ============ -->
+      <div id="view-overview" class="view">
+        <div class="page-title">Home</div>
+        <div class="breadcrumb"><a href="#">Home</a></div>
+
+        <div class="overdue-banner" id="overdue-banner"></div>
+
+        <div class="metric-row" style="grid-template-columns: repeat(4,1fr);">
+          <div class="metric-card">
+            <div class="metric-label">Médicos ativos</div>
+            <div class="metric-value">7</div>
+            <div class="metric-sub">de 8 cadastrados</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Fatura de locação</div>
+            <div class="metric-value">R$ 14.260</div>
+            <div class="metric-sub">minutagem e uso de sala</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Nota fiscal</div>
+            <div class="metric-value">R$ 9.920</div>
+            <div class="metric-sub">mensalidades</div>
+          </div>
+          <div class="metric-card" style="background: var(--petrol); border-color: var(--petrol);">
+            <div class="metric-label" style="color: rgba(255,255,255,0.65);">Total da fatura em andamento</div>
+            <div class="metric-value" style="color: #fff;">R$ 24.180</div>
+            <div class="metric-sub" style="color: rgba(255,255,255,0.65);">fatura de locação + nota fiscal</div>
+          </div>
+        </div>
+
+
+        <div class="card">
+          <table>
+            <thead><tr><th>Médico</th><th>Especialidade</th><th>Minutos no período</th><th>Valor gerado</th><th>Status</th></tr></thead>
+            <tbody id="overview-table"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ============ CADASTRO ============ -->
+      <div id="view-cadastro" class="view hidden">
+        <div class="page-title">Cadastros</div>
+        <div class="breadcrumb"><a href="#">Home</a> / <span class="current">Cadastros</span></div>
+
+        <div class="card form-card">
+          <div class="form-section-title">Dados da empresa</div>
+          <div class="form-grid">
+            <div class="form-field"><label>Razão social</label><input type="text" value="Clínica Vitalis Saúde Ltda."></div>
+            <div class="form-field"><label>Nome fantasia</label><input type="text" value="Clínica Vitalis"></div>
+            <div class="form-field locked">
+              <label>CNPJ</label>
+              <input type="text" value="12.345.678/0001-90" readonly>
+              <span class="locked-hint" onclick="abrirSolicitacaoCnpj()">Solicitar alteração de CNPJ</span>
+            </div>
+            <div class="form-field"><label>Regime tributário</label><input type="text" value="Simples Nacional"></div>
+            <div class="form-field"><label>Inscrição estadual</label><input type="text" value="Isento"></div>
+            <div class="form-field"><label>Data de cadastro</label><input type="text" value="14/03/2024" readonly></div>
+            <div class="form-field"><label>Unidade principal</label><input type="text" value="Vila Clementino, São Paulo"></div>
+            <div class="form-field"><label>Plano contratado</label><input type="text" value="Corpo clínico · Pay-per-use" readonly></div>
+            <div class="form-field"><label>Responsável financeiro</label><input type="text" value="Marina Costa Lima"></div>
+          </div>
+          <button class="btn primary" style="margin-top:18px">Salvar alterações</button>
+        </div>
+
+        <div class="card form-card">
+          <div class="form-section-title">Endereço fiscal</div>
+          <div class="form-grid">
+            <div class="form-field"><label>Logradouro</label><input type="text" value="R. Agostinho Rodrigues Filho, 550"></div>
+            <div class="form-field"><label>Bairro</label><input type="text" value="Vila Clementino"></div>
+            <div class="form-field"><label>Cidade / UF</label><input type="text" value="São Paulo / SP"></div>
+            <div class="form-field"><label>CEP</label><input type="text" value="04026-040"></div>
+            <div class="form-field"><label>E-mail financeiro</label><input type="text" value="financeiro@vitalis.com.br"></div>
+            <div class="form-field"><label>Telefone</label><input type="text" value="(11) 4002-8922"></div>
+          </div>
+          <button class="btn primary" style="margin-top:18px">Salvar alterações</button>
+        </div>
+      </div>
+
+      <!-- ============ PROFISSIONAIS ============ -->
+      <div id="view-medicos" class="view hidden">
+        <div class="page-title">Profissionais</div>
+        <div class="breadcrumb"><a href="#">Home</a> / <span class="current">Profissionais</span></div>
+
+        <div class="card form-card hidden" id="gestor-cadastro-membro">
+          <div class="form-section-title">Incluir membro por código <span class="gestor-only-tag">visão gestor Livance</span></div>
+          <div style="display:flex; gap:10px; align-items:flex-end; margin-bottom: 4px;">
+            <div class="form-field" style="flex:1">
+              <label>Código do membro (banco Livance)</label>
+              <input type="text" placeholder="Ex: LV-1050" id="codigo-membro-input">
+            </div>
+            <button class="btn primary" style="padding:9px 18px" onclick="buscarMembro()">Buscar e salvar</button>
+          </div>
+          <p class="gestor-hint">Ao salvar, nome, CPF, CRM e especialidade são preenchidos automaticamente a partir do banco de dados da Livance — não há cadastro manual desses campos aqui.</p>
+        </div>
+
+        <div class="toolbar-row">
+          <button class="btn" style="margin-left:auto"><span class="btn-icon">&#8595;</span>Exportar</button>
+        </div>
+
+        <div class="card">
+          <table>
+            <thead><tr><th>Código</th><th>Médico</th><th>CPF</th><th>Especialidade</th><th>Unidade habitual</th><th>Status</th><th class="hidden" id="th-acoes-gestor">Ações</th></tr></thead>
+            <tbody id="medicos-table"></tbody>
+          </table>
+        </div>
+        <p class="gestor-hint hidden" id="inativar-hint">Inativar aqui afeta apenas a visibilidade neste portal — não altera o cadastro do médico no banco de dados da Livance.</p>
+      </div>
+
+      <!-- ============ MOVIMENTAÇÕES ============ -->
+      <div id="view-movimentacao" class="view hidden">
+        <div class="page-title">Movimentações</div>
+        <div class="breadcrumb"><a href="#">Home</a> / <span class="current">Movimentações</span></div>
+
+        <div class="filter-row">
+          <div class="filter-field wide">
+            <div class="field-label">Profissional</div>
+            <select id="filtro-medico" onchange="renderMovimentacao()">
+              <option value="todos">Todos os médicos</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="doc-totals-row" id="doc-totals-row"></div>
+
+        <div class="toolbar-row">
+          <button class="btn" style="margin-left:auto"><span class="btn-icon">&#8595;</span>Exportar</button>
+        </div>
+
+        <div class="mov-layout">
+          <div style="flex:1">
+            <div class="month-tabs" id="month-tabs"></div>
+            <div class="mov-table-wrap">
+              <table>
+                <thead>
+                  <tr><th>Data</th><th>Unidade</th><th id="th-medico" class="hidden">Médico</th><th>Descrição</th><th>Valores</th></tr>
+                </thead>
+                <tbody id="movimentacao-table"></tbody>
+              </table>
+            </div>
+          </div>
+          <div class="credit-card" id="credit-card"></div>
+        </div>
+      </div>
+
+      <!-- ============ SOLICITAÇÕES ============ -->
+      <div id="view-solicitacoes" class="view hidden">
+        <div class="page-title">Solicitações</div>
+        <div class="breadcrumb"><a href="#">Home</a> / <span class="current">Solicitações</span></div>
+
+        <div class="tickets-layout">
+          <div class="tickets-list">
+            <div class="tickets-list-header">
+              <span class="tickets-list-title">Meus chamados</span>
+              <button class="btn primary" style="padding:6px 12px; font-size:12px" onclick="novaSolicitacao()">+ Nova</button>
+            </div>
+            <div id="tickets-items"></div>
+          </div>
+          <div class="ticket-chat" id="ticket-chat"></div>
+        </div>
+      </div>
+
+      <div id="view-financeiro" class="view hidden">
+        <div class="page-title">Financeiro</div>
+        <div class="breadcrumb"><a href="#">Home</a> / <span class="current">Financeiro</span></div>
+
+        <div class="card">
+          <table>
+            <thead><tr><th>Competência</th><th>Vencimento</th><th>Valor</th><th>Status</th><th>Nota fiscal</th><th>Boleto</th></tr></thead>
+            <tbody id="financeiro-table"></tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+const medicos = [
+  { codigo: 'LV-1042', nome: 'Dr. Alessandro Tavares', cpf: '123.456.789-01', crm: 'CRM 90737', esp: 'Urologia', unidade: 'Vila Clementino', status: 'ativo', minutos: 3120, valor: 4890 },
+  { codigo: 'LV-1043', nome: 'Dr. Helio Smolentzov', cpf: '234.567.890-12', crm: 'CRM 21496', esp: 'Cirurgia do Aparelho Digestivo', unidade: 'Indianópolis', status: 'ativo', minutos: 2780, valor: 4310 },
+  { codigo: 'LV-1044', nome: 'Dra. Edna Ferreira', cpf: '345.678.901-23', crm: 'CRM 164863', esp: 'Ginecologia e Obstetrícia', unidade: 'Alphaville', status: 'ativo', minutos: 3540, valor: 5260 },
+  { codigo: 'LV-1045', nome: 'Dra. Camila Borges', cpf: '456.789.012-34', crm: 'CRM 77210', esp: 'Dermatologia', unidade: 'Vila Clementino', status: 'ativo', minutos: 2210, valor: 3480 },
+  { codigo: 'LV-1046', nome: 'Dr. Rafael Mendonça', cpf: '567.890.123-45', crm: 'CRM 55829', esp: 'Cardiologia', unidade: 'Indianópolis', status: 'ativo', minutos: 1980, valor: 3120 },
+  { codigo: 'LV-1047', nome: 'Dra. Patrícia Nogueira', cpf: '678.901.234-56', crm: 'CRM 31044', esp: 'Endocrinologia', unidade: 'Vila Clementino', status: 'ativo', minutos: 1640, valor: 2540 },
+  { codigo: 'LV-1048', nome: 'Dr. Bruno Castelhano', cpf: '789.012.345-67', crm: 'CRM 48391', esp: 'Ortopedia', unidade: 'Alphaville', status: 'ativo', minutos: 1480, valor: 2310 },
+  { codigo: 'LV-1049', nome: 'Dra. Juliana Prates', cpf: '890.123.456-78', crm: 'CRM 60123', esp: 'Psiquiatria', unidade: 'Vila Clementino', status: 'inativo', minutos: 0, valor: 0 },
+];
+
+const meses = [
+  { key: '2026-01', label: '01 ABR', sub: '' },
+  { key: '2026-02', label: '01 MAI', sub: '' },
+  { key: '2026-03', label: '01 JUN', sub: '' },
+  { key: '2026-04', label: '01 JUL', sub: '' },
+  { key: '2026-05', label: '01 AGO', sub: '(ABERTA)' },
+];
+let mesAtivo = '2026-03';
+
+// NOTA: o campo "documento" abaixo é um placeholder simulado para visualização.
+// Em produção, esse campo precisa vir pronto do banco de dados junto com cada
+// lançamento (ver seção 4 do documento de requisitos) — não pode ser inferido
+// pela descrição, pois o mesmo tipo de movimento pode gerar documentos diferentes.
+const movimentacoes = [
+  { mes: '2026-01', data: '31 JAN/26', medico: 'Dra. Adriana Andressa Pincerno', unidade: '--', desc: 'Abono - Ação Promocional', valor: -259, credito: false, documento: 'nota_fiscal' },
+  { mes: '2026-01', data: '31 JAN/26', medico: 'Dra. Adriana Andressa Pincerno', unidade: '--', desc: 'Mensalidade', valor: 259, credito: false, documento: 'nota_fiscal' },
+  { mes: '2026-02', data: '28 FEV/26', medico: 'Dra. Adriana Andressa Pincerno', unidade: '--', desc: 'Mensalidade', valor: 259, credito: false, documento: 'nota_fiscal' },
+  { mes: '2026-03', data: '26 JUN/26', medico: 'Dr. Alessandro Tavares', unidade: 'Vila Clementino', desc: 'Minutagem de sala', valor: 52, credito: false, documento: 'fatura_locacao' },
+  { mes: '2026-03', data: '26 JUN/26', medico: 'Dra. Edna Ferreira', unidade: 'Alphaville', desc: 'Minutagem de sala', valor: 38, credito: false, documento: 'fatura_locacao' },
+  { mes: '2026-03', data: '25 JUN/26', medico: 'Dr. Helio Smolentzov', unidade: 'Indianópolis', desc: 'Minutagem de sala', valor: 64, credito: false, documento: 'fatura_locacao' },
+  { mes: '2026-03', data: '25 JUN/26', medico: 'Dra. Camila Borges', unidade: 'Vila Clementino', desc: 'Uso avulso', valor: 45, credito: false, documento: 'fatura_locacao' },
+  { mes: '2026-03', data: '24 JUN/26', medico: 'Dr. Rafael Mendonça', unidade: 'Indianópolis', desc: 'Minutagem de sala', valor: 47, credito: false, documento: 'fatura_locacao' },
+  { mes: '2026-03', data: '15 JUN/26', medico: 'Dr. Alessandro Tavares', unidade: '--', desc: 'Mensalidade', valor: 236, credito: false, documento: 'nota_fiscal' },
+  { mes: '2026-03', data: '15 JUN/26', medico: 'Dra. Edna Ferreira', unidade: '--', desc: 'Mensalidade', valor: 236, credito: false, documento: 'nota_fiscal' },
+  { mes: '2026-03', data: '15 JUN/26', medico: 'Dr. Helio Smolentzov', unidade: '--', desc: 'Mensalidade', valor: 236, credito: false, documento: 'nota_fiscal' },
+  { mes: '2026-04', data: '05 JUL/26', medico: 'Dr. Bruno Castelhano', unidade: 'Alphaville', desc: 'Minutagem de sala', valor: 55, credito: false, documento: 'fatura_locacao' },
+  { mes: '2026-04', data: '15 JUL/26', medico: 'Dra. Patrícia Nogueira', unidade: '--', desc: 'Mensalidade', valor: 236, credito: false, documento: 'nota_fiscal' },
+  { mes: '2026-05', data: '01 AGO/26', medico: 'Todos', unidade: '--', desc: 'Fatura em aberto', valor: 259, credito: true, vencimento: '01 ABR/26', documento: 'nota_fiscal' },
+];
+
+const faturas = [
+  { competencia: 'Julho/2026', vencimento: '10/06/2026', valor: 'R$ 3.420,00', status: 'vencido' },
+  { competencia: 'Junho/2026', vencimento: '10/07/2026', valor: 'R$ 24.180,00', status: 'aberto' },
+  { competencia: 'Maio/2026', vencimento: '10/06/2026', valor: 'R$ 21.640,00', status: 'pago' },
+  { competencia: 'Abril/2026', vencimento: '10/05/2026', valor: 'R$ 19.870,00', status: 'pago' },
+  { competencia: 'Março/2026', vencimento: '10/04/2026', valor: 'R$ 22.310,00', status: 'pago' },
+];
+
+let perfilAtivo = 'clinica';
+
+function setProfileTab(perfil) {
+  perfilAtivo = perfil;
+  document.getElementById('tab-clinica').classList.toggle('active', perfil === 'clinica');
+  document.getElementById('tab-gestor').classList.toggle('active', perfil === 'gestor');
+  document.getElementById('login-fields-clinica').classList.toggle('hidden', perfil !== 'clinica');
+  document.getElementById('login-fields-gestor').classList.toggle('hidden', perfil !== 'gestor');
+  document.getElementById('login-foot-text').innerHTML = perfil === 'clinica'
+    ? 'Ambiente do corpo clínico cadastrado na Livance.<br>Protótipo — dados fictícios.'
+    : 'Ambiente interno de gestão financeira da Livance.<br>Protótipo — dados fictícios.';
+}
+
+function enterApp() {
+  document.getElementById('login-screen').classList.add('hidden');
+  document.getElementById('app').classList.remove('hidden');
+
+  const isGestor = perfilAtivo === 'gestor';
+  document.getElementById('sidebar-profile-name').textContent = isGestor
+    ? 'Gestão Livance · Financeiro'
+    : 'Clínica Vitalis Saúde';
+  document.getElementById('gestor-cadastro-membro').classList.toggle('hidden', !isGestor);
+  document.getElementById('th-acoes-gestor').classList.toggle('hidden', !isGestor);
+  document.getElementById('inativar-hint').classList.toggle('hidden', !isGestor);
+
+  renderAll();
+}
+function logout() {
+  document.getElementById('app').classList.add('hidden');
+  document.getElementById('login-screen').classList.remove('hidden');
+}
+function toggleAvisos() {
+  document.getElementById('avisos-panel').classList.toggle('hidden');
+}
+document.addEventListener('click', function(e) {
+  const panel = document.getElementById('avisos-panel');
+  const icon = e.target.closest('.topbar-icon');
+  if (!panel.contains(e.target) && !(icon && icon.title === 'Avisos')) {
+    panel.classList.add('hidden');
+  }
+});
+
+function setView(view) {
+  document.querySelectorAll('.view').forEach(v => v.classList.add('hidden'));
+  document.getElementById('view-' + view).classList.remove('hidden');
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.querySelector('.nav-item[data-view="' + view + '"]').classList.add('active');
+}
+
+function statusPill(status) {
+  if (status === 'ativo') return '<span class="pill ok">Ativo</span>';
+  return '<span class="pill neutral">Inativo</span>';
+}
+
+function renderOverview() {
+  const top = [...medicos].filter(m => m.status === 'ativo').sort((a,b) => b.minutos - a.minutos).slice(0,5);
+  document.getElementById('overview-table').innerHTML = top.map(m => `
+    <tr>
+      <td><div class="doc-cell">${m.nome}<span class="crm">${m.crm}</span></div></td>
+      <td>${m.esp}</td>
+      <td>${m.minutos.toLocaleString('pt-BR')}</td>
+      <td class="val">R$ ${m.valor.toLocaleString('pt-BR')}</td>
+      <td>${statusPill(m.status)}</td>
+    </tr>
+  `).join('');
+}
+
+function renderMedicos() {
+  const isGestor = perfilAtivo === 'gestor';
+  document.getElementById('medicos-table').innerHTML = medicos.map(m => `
+    <tr>
+      <td>${m.codigo}</td>
+      <td><div class="doc-cell">${m.nome}<span class="crm">${m.crm}</span></div></td>
+      <td>${m.cpf}</td>
+      <td>${m.esp}</td>
+      <td>${m.unidade}</td>
+      <td>${statusPill(m.status)}</td>
+      ${isGestor ? `<td>${m.status === 'ativo'
+        ? `<span class="action-link danger" onclick="inativarMembro('${m.codigo}')">Inativar</span>`
+        : `<span class="action-link" onclick="reativarMembro('${m.codigo}')">Reativar</span>`}</td>` : ''}
+    </tr>
+  `).join('');
+}
+
+function buscarMembro() {
+  const codigo = document.getElementById('codigo-membro-input').value.trim();
+  if (!codigo) return;
+  const existente = medicos.find(m => m.codigo.toLowerCase() === codigo.toLowerCase());
+  if (existente) {
+    alert('Código já cadastrado neste corpo clínico: ' + existente.nome + '.\n\nEm produção, aqui o sistema consultaria o banco de dados da Livance pelo código informado e preencheria nome, CPF, CRM, especialidade e unidade automaticamente.');
+  } else {
+    alert('Buscando código ' + codigo + ' no banco de dados da Livance...\n\nEm produção, isso preencheria automaticamente nome, CPF, CRM, especialidade e unidade, sem digitação manual.');
+  }
+  document.getElementById('codigo-membro-input').value = '';
+}
+
+function inativarMembro(codigo) {
+  const m = medicos.find(x => x.codigo === codigo);
+  if (m) { m.status = 'inativo'; renderMedicos(); renderOverview(); }
+}
+function reativarMembro(codigo) {
+  const m = medicos.find(x => x.codigo === codigo);
+  if (m) { m.status = 'ativo'; renderMedicos(); renderOverview(); }
+}
+
+function populateFiltroMedico() {
+  const sel = document.getElementById('filtro-medico');
+  medicos.forEach(m => {
+    const opt = document.createElement('option');
+    opt.value = m.nome;
+    opt.textContent = m.nome;
+    sel.appendChild(opt);
+  });
+}
+
+function renderMonthTabs() {
+  const wrap = document.getElementById('month-tabs');
+  wrap.innerHTML = meses.map(m => `
+    <button class="month-tab ${m.key === mesAtivo ? 'active' : ''}" onclick="selectMonth('${m.key}')">
+      ${m.label}${m.sub ? '<span class="sub">' + m.sub + '</span>' : ''}
+    </button>
+  `).join('');
+}
+
+function selectMonth(key) {
+  mesAtivo = key;
+  renderMonthTabs();
+  renderMovimentacao();
+}
+
+function renderMovimentacao() {
+  const fMedico = document.getElementById('filtro-medico').value;
+  const showMedicoCol = fMedico === 'todos';
+  document.getElementById('th-medico').classList.toggle('hidden', !showMedicoCol);
+
+  let rows = movimentacoes.filter(r => r.mes === mesAtivo && !r.credito);
+  if (fMedico !== 'todos') rows = rows.filter(r => r.medico === fMedico);
+
+  const tbody = document.getElementById('movimentacao-table');
+  if (rows.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="${showMedicoCol ? 5 : 4}"><div class="empty-state">Nenhuma movimentação neste mês para o filtro selecionado.</div></td></tr>`;
+  } else {
+    tbody.innerHTML = rows.map(r => `
+      <tr>
+        <td>${r.data}</td>
+        <td>${r.unidade}</td>
+        ${showMedicoCol ? `<td>${r.medico}</td>` : ''}
+        <td>${r.desc}</td>
+        <td class="val ${r.valor < 0 ? 'neg' : 'pos'}">${r.valor < 0 ? '-' : ''}R$ ${Math.abs(r.valor).toLocaleString('pt-BR', {minimumFractionDigits:2})}</td>
+      </tr>
+    `).join('');
+  }
+
+  const credito = movimentacoes.find(r => r.mes === mesAtivo && r.credito);
+  const creditCard = document.getElementById('credit-card');
+  if (credito) {
+    creditCard.innerHTML = `
+      <div class="credit-label">Creditado</div>
+      <div class="credit-value">R$ ${credito.valor.toLocaleString('pt-BR', {minimumFractionDigits:2})}</div>
+      <div class="credit-due">Vencimento <b>${credito.vencimento}</b></div>
+    `;
+  } else {
+    const total = rows.reduce((s, r) => s + r.valor, 0);
+    creditCard.innerHTML = `
+      <div class="credit-label">Total do período</div>
+      <div class="credit-value">R$ ${total.toLocaleString('pt-BR', {minimumFractionDigits:2})}</div>
+      <div class="credit-due">${rows.length} lançamento${rows.length !== 1 ? 's' : ''}</div>
+    `;
+  }
+
+  const totalFatura = rows.filter(r => r.documento === 'fatura_locacao').reduce((s, r) => s + r.valor, 0);
+  const totalNF = rows.filter(r => r.documento === 'nota_fiscal').reduce((s, r) => s + r.valor, 0);
+  document.getElementById('doc-totals-row').innerHTML = `
+    <div class="doc-total-card">
+      <span class="doc-total-label">Fatura de locação</span>
+      <span class="doc-total-value">R$ ${totalFatura.toLocaleString('pt-BR', {minimumFractionDigits:2})}</span>
+    </div>
+    <div class="doc-total-card">
+      <span class="doc-total-label">Nota fiscal</span>
+      <span class="doc-total-value">R$ ${totalNF.toLocaleString('pt-BR', {minimumFractionDigits:2})}</span>
+    </div>
+  `;
+}
+
+function statusFaturaPill(status) {
+  if (status === 'pago') return '<span class="pill ok">Pago</span>';
+  if (status === 'vencido') return '<span class="pill warn">Vencido</span>';
+  return '<span class="pill neutral">Em aberto</span>';
+}
+
+function renderFinanceiro() {
+  document.getElementById('financeiro-table').innerHTML = faturas.map(f => `
+    <tr>
+      <td>${f.competencia}</td>
+      <td>${f.vencimento}</td>
+      <td class="val">${f.valor}</td>
+      <td>${statusFaturaPill(f.status)}</td>
+      <td><span class="download-link">Baixar NF ↓</span></td>
+      <td><span class="download-link">Baixar boleto ↓</span></td>
+    </tr>
+  `).join('');
+}
+
+function renderOverdueBanner() {
+  const banner = document.getElementById('overdue-banner');
+  const vencidas = faturas.filter(f => f.status === 'vencido');
+  if (vencidas.length === 0) {
+    banner.innerHTML = '';
+    banner.classList.add('hidden');
+    return;
+  }
+  banner.classList.remove('hidden');
+  banner.onclick = () => setView('financeiro');
+  banner.innerHTML = `
+    <span class="icon">&#9888;</span>
+    <span class="text">Você tem <b>${vencidas.length} fatura${vencidas.length > 1 ? 's' : ''} vencida${vencidas.length > 1 ? 's' : ''}</b>. Evite o bloqueio do seu corpo clínico.</span>
+    <span class="cta">Ir para Financeiro ›</span>
+  `;
+}
+
+const tickets = [
+  {
+    id: 1,
+    assunto: 'Inclusão de novo médico',
+    tipo: 'Inclusão de médico',
+    status: 'aberto',
+    data: '24 jun, 2026',
+    mensagens: [
+      { de: 'clinica', texto: 'Gostaríamos de incluir o Dr. Marcos Tannuri (CRM 88210, Cardiologia) no nosso corpo clínico. Segue o contrato social anexo.', data: '24 jun, 09:12', anexo: 'contrato-social.pdf' },
+      { de: 'gestao', texto: 'Recebemos a solicitação, Marina. Vamos validar o CRM e o documento e retornamos em até 2 dias úteis.', data: '24 jun, 11:40' },
+    ]
+  },
+  {
+    id: 2,
+    assunto: 'Dúvida sobre mensalidade em duplicidade',
+    tipo: 'Dúvida',
+    status: 'encerrado',
+    data: '18 jun, 2026',
+    mensagens: [
+      { de: 'clinica', texto: 'Reparamos duas cobranças de mensalidade pra Dra. Camila Borges em junho. Poderiam verificar?', data: '18 jun, 14:05' },
+      { de: 'gestao', texto: 'Verificamos e identificamos um lançamento duplicado por erro de sistema. Já estornamos o valor de R$ 259,00, deve aparecer no extrato em até 48h.', data: '19 jun, 10:22' },
+      { de: 'clinica', texto: 'Perfeito, obrigada pelo retorno rápido!', data: '19 jun, 10:30' },
+    ]
+  },
+];
+let ticketAtivo = 1;
+
+function renderTickets() {
+  const list = document.getElementById('tickets-items');
+  list.innerHTML = tickets.map(t => `
+    <div class="ticket-item ${t.id === ticketAtivo ? 'active' : ''}" onclick="abrirTicket(${t.id})">
+      <div class="ticket-top">
+        <span class="ticket-subject">${t.assunto}</span>
+        <span class="status-tag ${t.status}">${t.status}</span>
+      </div>
+      <div class="ticket-preview">${t.mensagens[t.mensagens.length - 1].texto}</div>
+      <div class="ticket-meta">${t.tipo} · ${t.data}</div>
+    </div>
+  `).join('');
+  renderChat();
+}
+
+function abrirTicket(id) {
+  ticketAtivo = id;
+  renderTickets();
+}
+
+function renderChat() {
+  const t = tickets.find(x => x.id === ticketAtivo);
+  const wrap = document.getElementById('ticket-chat');
+  if (!t) {
+    wrap.innerHTML = `<div class="empty-chat">Selecione um chamado para visualizar a conversa.</div>`;
+    return;
+  }
+  wrap.innerHTML = `
+    <div class="ticket-chat-header">
+      <div class="ticket-chat-subject">${t.assunto}</div>
+      <div class="ticket-chat-tags"><span class="status-tag ${t.status}">${t.status}</span> ${t.tipo} · aberto em ${t.data}</div>
+    </div>
+    <div class="chat-messages">
+      ${t.mensagens.map(m => `
+        <div class="chat-msg ${m.de}">
+          <div class="chat-bubble">
+            ${m.texto}
+            ${m.anexo ? `<div class="chat-attach">&#128206; ${m.anexo}</div>` : ''}
+          </div>
+          <div class="chat-meta">${m.de === 'clinica' ? 'Você' : 'Livance'} · ${m.data}</div>
+        </div>
+      `).join('')}
+    </div>
+    <div class="chat-input-row">
+      <span class="attach-btn" title="Anexar documento">&#128206;</span>
+      <input type="text" placeholder="${t.status === 'encerrado' ? 'Chamado encerrado' : 'Escreva uma mensagem...'}" ${t.status === 'encerrado' ? 'disabled' : ''}>
+      <button class="btn primary" style="padding:9px 16px" ${t.status === 'encerrado' ? 'disabled' : ''}>Enviar</button>
+    </div>
+  `;
+}
+
+function novaSolicitacao() {
+  alert('Aqui abriria o formulário de nova solicitação: tipo (Dúvida / Inclusão de médico / Exclusão de médico / Alteração de CNPJ), descrição e anexo.');
+}
+
+function abrirSolicitacaoCnpj() {
+  setView('solicitacoes');
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.querySelector('.nav-item[data-view="solicitacoes"]').classList.add('active');
+  alert('Abriria o formulário de nova solicitação já com o tipo "Alteração de CNPJ" pré-selecionado.');
+}
+
+function renderAll() {
+  renderTickets();
+  renderOverview();
+  renderOverdueBanner();
+  renderMedicos();
+  populateFiltroMedico();
+  renderMonthTabs();
+  renderMovimentacao();
+  renderFinanceiro();
+}
+</script>
+
+</body>
+</html>
