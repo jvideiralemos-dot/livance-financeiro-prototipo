@@ -428,16 +428,25 @@
     </div>
 
     <div id="login-fields-clinica">
-      <div class="login-field"><label>CNPJ</label><input type="text" value="12.345.678/0001-90"></div>
-      <div class="login-field"><label>Senha</label><input type="text" value="••••••••"></div>
+      <div class="login-field"><label>CNPJ</label><input type="text" id="login-clinica-usuario" placeholder="12.345.678/0001-90"></div>
+      <div class="login-field"><label>Senha</label><input type="password" id="login-clinica-senha"></div>
     </div>
     <div id="login-fields-gestor" class="hidden">
-      <div class="login-field"><label>E-mail Livance</label><input type="text" value="marina.gestao@livance.com.br"></div>
-      <div class="login-field"><label>Senha</label><input type="text" value="••••••••"></div>
+      <div class="login-field"><label>Usuário Livance</label><input type="text" id="login-gestor-usuario" placeholder="joana"></div>
+      <div class="login-field"><label>Senha</label><input type="password" id="login-gestor-senha"></div>
     </div>
+    <div id="login-erro" class="hidden" style="color:var(--red);font-size:12px;margin-bottom:12px;line-height:1.5;"></div>
 
-    <button class="btn primary login-btn" onclick="enterApp()">Entrar</button>
-    <div class="login-foot" id="login-foot-text">Ambiente do corpo clínico cadastrado na Livance.<br>Protótipo — dados fictícios.</div>
+    <button class="btn primary login-btn" id="login-btn" onclick="tentarLogin()">Entrar</button>
+    <script>
+      document.addEventListener('DOMContentLoaded', function () {
+        ['login-clinica-senha', 'login-gestor-senha'].forEach(function (id) {
+          var el = document.getElementById(id);
+          if (el) el.addEventListener('keydown', function (ev) { if (ev.key === 'Enter') tentarLogin(); });
+        });
+      });
+    </script>
+    <div class="login-foot" id="login-foot-text">Ambiente do corpo clínico cadastrado na Livance.<br>Conectado à base real da Livance.</div>
   </div>
 </div>
 
@@ -446,7 +455,10 @@
   <div class="sidebar">
     <div class="sidebar-profile">
       <div class="avatar-circle">IMAGEM<br>NÃO DISPONÍVEL</div>
-      <div class="profile-name" id="sidebar-profile-name">Clínica Vitalis Saúde</div>
+      <div class="profile-name" id="sidebar-profile-name">Clínica</div>
+      <div id="gestor-clinica-selector" class="hidden" style="margin-top:10px;">
+        <select id="gestor-clinica-select" onchange="trocarClinicaGestor()" style="width:100%; font-size:11.5px; padding:6px 8px;"></select>
+      </div>
     </div>
     <div class="nav">
       <button class="nav-item active" data-view="overview" onclick="setView('overview')">
@@ -476,7 +488,7 @@
         <span class="topbar-icon" onclick="toggleAvisos()" title="Avisos">&#128276;<span class="badge-count" id="avisos-count">2</span></span>
       </div>
       <div class="topbar-right">
-        <span>Olá Clínica Vitalis !</span>
+        <span id="topbar-saudacao">Olá!</span>
         <span class="topbar-icon logout-icon" onclick="logout()" title="Sair">&#9211;</span>
       </div>
 
@@ -507,22 +519,22 @@
         <div class="metric-row" style="grid-template-columns: repeat(4,1fr);">
           <div class="metric-card">
             <div class="metric-label">Médicos ativos</div>
-            <div class="metric-value">7</div>
-            <div class="metric-sub">de 8 cadastrados</div>
+            <div class="metric-value" id="metric-medicos-ativos">--</div>
+            <div class="metric-sub" id="metric-medicos-sub">--</div>
           </div>
           <div class="metric-card">
             <div class="metric-label">Fatura de locação</div>
-            <div class="metric-value">R$ 14.260</div>
-            <div class="metric-sub">minutagem e uso de sala</div>
+            <div class="metric-value" id="metric-fatura-locacao">--</div>
+            <div class="metric-sub">minutagem e uso de sala (mês em aberto)</div>
           </div>
           <div class="metric-card">
             <div class="metric-label">Nota fiscal</div>
-            <div class="metric-value">R$ 9.920</div>
-            <div class="metric-sub">mensalidades</div>
+            <div class="metric-value" id="metric-nota-fiscal">--</div>
+            <div class="metric-sub">mensalidades (mês em aberto)</div>
           </div>
           <div class="metric-card" style="background: var(--petrol); border-color: var(--petrol);">
-            <div class="metric-label" style="color: rgba(255,255,255,0.65);">Total da fatura em andamento</div>
-            <div class="metric-value" style="color: #fff;">R$ 24.180</div>
+            <div class="metric-label" style="color: rgba(255,255,255,0.65);">Total do mês em andamento</div>
+            <div class="metric-value" id="metric-total-mes" style="color: #fff;">--</div>
             <div class="metric-sub" style="color: rgba(255,255,255,0.65);">fatura de locação + nota fiscal</div>
           </div>
         </div>
@@ -587,7 +599,7 @@
               <label>Código do membro (banco Livance)</label>
               <input type="text" placeholder="Ex: LV-1050" id="codigo-membro-input">
             </div>
-            <button class="btn primary" style="padding:9px 18px" onclick="buscarMembro()">Buscar e salvar</button>
+            <button class="btn primary" style="padding:9px 18px" onclick="buscarESalvarMembro()">Buscar e salvar</button>
           </div>
           <p class="gestor-hint">Ao salvar, nome, CPF, CRM e especialidade são preenchidos automaticamente a partir do banco de dados da Livance — não há cadastro manual desses campos aqui.</p>
         </div>
@@ -613,7 +625,7 @@
         <div class="filter-row">
           <div class="filter-field wide">
             <div class="field-label">Profissional</div>
-            <select id="filtro-medico" onchange="renderMovimentacao()">
+            <select id="filtro-medico" onchange="renderMovimentacaoAtual()">
               <option value="todos">Todos os médicos</option>
             </select>
           </div>
@@ -674,57 +686,118 @@
   </div>
 </div>
 
+<!-- ===================== MODAL NOVA SOLICITAÇÃO ===================== -->
+<div id="modal-nova-solicitacao" class="hidden" style="position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:200; display:flex; align-items:center; justify-content:center;">
+  <div class="card form-card" style="width:420px; max-width:90vw;">
+    <div class="form-section-title">Nova solicitação</div>
+    <div class="form-field" style="margin-bottom:14px;">
+      <label style="display:block;font-size:11.5px;color:var(--text-soft);margin-bottom:5px;">Assunto</label>
+      <input type="text" id="nova-sol-assunto" style="width:100%;">
+    </div>
+    <div class="form-field" style="margin-bottom:16px;">
+      <label style="display:block;font-size:11.5px;color:var(--text-soft);margin-bottom:5px;">Mensagem</label>
+      <textarea id="nova-sol-mensagem" rows="4" style="width:100%; font-family:inherit; font-size:13.5px; padding:9px 12px; border:1px solid #D6D6D6; border-radius:4px;"></textarea>
+    </div>
+    <div id="nova-sol-erro" class="hidden" style="color:var(--red); font-size:12px; margin-bottom:10px;"></div>
+    <div style="display:flex; gap:10px; justify-content:flex-end;">
+      <button class="btn" onclick="fecharModalNovaSolicitacao()">Cancelar</button>
+      <button class="btn primary" id="nova-sol-btn" onclick="enviarNovaSolicitacao()">Criar chamado</button>
+    </div>
+  </div>
+</div>
+
 <script>
-const medicos = [
-  { codigo: 'LV-1042', nome: 'Dr. Alessandro Tavares', cpf: '123.456.789-01', crm: 'CRM 90737', esp: 'Urologia', unidade: 'Vila Clementino', status: 'ativo', minutos: 3120, valor: 4890 },
-  { codigo: 'LV-1043', nome: 'Dr. Helio Smolentzov', cpf: '234.567.890-12', crm: 'CRM 21496', esp: 'Cirurgia do Aparelho Digestivo', unidade: 'Indianópolis', status: 'ativo', minutos: 2780, valor: 4310 },
-  { codigo: 'LV-1044', nome: 'Dra. Edna Ferreira', cpf: '345.678.901-23', crm: 'CRM 164863', esp: 'Ginecologia e Obstetrícia', unidade: 'Alphaville', status: 'ativo', minutos: 3540, valor: 5260 },
-  { codigo: 'LV-1045', nome: 'Dra. Camila Borges', cpf: '456.789.012-34', crm: 'CRM 77210', esp: 'Dermatologia', unidade: 'Vila Clementino', status: 'ativo', minutos: 2210, valor: 3480 },
-  { codigo: 'LV-1046', nome: 'Dr. Rafael Mendonça', cpf: '567.890.123-45', crm: 'CRM 55829', esp: 'Cardiologia', unidade: 'Indianópolis', status: 'ativo', minutos: 1980, valor: 3120 },
-  { codigo: 'LV-1047', nome: 'Dra. Patrícia Nogueira', cpf: '678.901.234-56', crm: 'CRM 31044', esp: 'Endocrinologia', unidade: 'Vila Clementino', status: 'ativo', minutos: 1640, valor: 2540 },
-  { codigo: 'LV-1048', nome: 'Dr. Bruno Castelhano', cpf: '789.012.345-67', crm: 'CRM 48391', esp: 'Ortopedia', unidade: 'Alphaville', status: 'ativo', minutos: 1480, valor: 2310 },
-  { codigo: 'LV-1049', nome: 'Dra. Juliana Prates', cpf: '890.123.456-78', crm: 'CRM 60123', esp: 'Psiquiatria', unidade: 'Vila Clementino', status: 'inativo', minutos: 0, valor: 0 },
-];
+/* =====================================================================
+   CONFIGURAÇÃO — conexões reais
+   ===================================================================== */
+const SUPABASE_URL = 'https://mwqaheysdhvftghfcfjb.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im13cWFoZXlzZGh2ZnRnaGZjZmpiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2MzI4MzgsImV4cCI6MjA5NzIwODgzOH0.o4zdgzpEiB4sbr4f9WvnBvyMqgTTtsMA_y2A_ldSa8k';
+const APPS_SCRIPT_URL = 'https://script.google.com/a/macros/livance.com.br/s/AKfycby8VIIIh1w8SNHf4niEdSO84eXBYnO7oLhZKc88yWjNcjkixjpdZs52s64PJJQMJ4xa/exec';
 
-const meses = [
-  { key: '2026-01', label: '01 ABR', sub: '' },
-  { key: '2026-02', label: '01 MAI', sub: '' },
-  { key: '2026-03', label: '01 JUN', sub: '' },
-  { key: '2026-04', label: '01 JUL', sub: '' },
-  { key: '2026-05', label: '01 AGO', sub: '(ABERTA)' },
-];
-let mesAtivo = '2026-03';
+const MESES_PT = ['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ'];
 
-// NOTA: o campo "documento" abaixo é um placeholder simulado para visualização.
-// Em produção, esse campo precisa vir pronto do banco de dados junto com cada
-// lançamento (ver seção 4 do documento de requisitos) — não pode ser inferido
-// pela descrição, pois o mesmo tipo de movimento pode gerar documentos diferentes.
-const movimentacoes = [
-  { mes: '2026-01', data: '31 JAN/26', medico: 'Dra. Adriana Andressa Pincerno', unidade: '--', desc: 'Abono - Ação Promocional', valor: -259, credito: false, documento: 'nota_fiscal' },
-  { mes: '2026-01', data: '31 JAN/26', medico: 'Dra. Adriana Andressa Pincerno', unidade: '--', desc: 'Mensalidade', valor: 259, credito: false, documento: 'nota_fiscal' },
-  { mes: '2026-02', data: '28 FEV/26', medico: 'Dra. Adriana Andressa Pincerno', unidade: '--', desc: 'Mensalidade', valor: 259, credito: false, documento: 'nota_fiscal' },
-  { mes: '2026-03', data: '26 JUN/26', medico: 'Dr. Alessandro Tavares', unidade: 'Vila Clementino', desc: 'Minutagem de sala', valor: 52, credito: false, documento: 'fatura_locacao' },
-  { mes: '2026-03', data: '26 JUN/26', medico: 'Dra. Edna Ferreira', unidade: 'Alphaville', desc: 'Minutagem de sala', valor: 38, credito: false, documento: 'fatura_locacao' },
-  { mes: '2026-03', data: '25 JUN/26', medico: 'Dr. Helio Smolentzov', unidade: 'Indianópolis', desc: 'Minutagem de sala', valor: 64, credito: false, documento: 'fatura_locacao' },
-  { mes: '2026-03', data: '25 JUN/26', medico: 'Dra. Camila Borges', unidade: 'Vila Clementino', desc: 'Uso avulso', valor: 45, credito: false, documento: 'fatura_locacao' },
-  { mes: '2026-03', data: '24 JUN/26', medico: 'Dr. Rafael Mendonça', unidade: 'Indianópolis', desc: 'Minutagem de sala', valor: 47, credito: false, documento: 'fatura_locacao' },
-  { mes: '2026-03', data: '15 JUN/26', medico: 'Dr. Alessandro Tavares', unidade: '--', desc: 'Mensalidade', valor: 236, credito: false, documento: 'nota_fiscal' },
-  { mes: '2026-03', data: '15 JUN/26', medico: 'Dra. Edna Ferreira', unidade: '--', desc: 'Mensalidade', valor: 236, credito: false, documento: 'nota_fiscal' },
-  { mes: '2026-03', data: '15 JUN/26', medico: 'Dr. Helio Smolentzov', unidade: '--', desc: 'Mensalidade', valor: 236, credito: false, documento: 'nota_fiscal' },
-  { mes: '2026-04', data: '05 JUL/26', medico: 'Dr. Bruno Castelhano', unidade: 'Alphaville', desc: 'Minutagem de sala', valor: 55, credito: false, documento: 'fatura_locacao' },
-  { mes: '2026-04', data: '15 JUL/26', medico: 'Dra. Patrícia Nogueira', unidade: '--', desc: 'Mensalidade', valor: 236, credito: false, documento: 'nota_fiscal' },
-  { mes: '2026-05', data: '01 AGO/26', medico: 'Todos', unidade: '--', desc: 'Fatura em aberto', valor: 259, credito: true, vencimento: '01 ABR/26', documento: 'nota_fiscal' },
-];
+/* =====================================================================
+   ESTADO EM MEMÓRIA
+   ===================================================================== */
+let sessao = { token: null, tipo: null, clinicaId: null, clinicaNome: null, clinicaCnpj: null };
+let clinicasGestor = [];
+let membros = [];
+let solicitacoes = [];
+let solicitacaoAtivaId = null;
+let meses = [];
+let mesAtivo = null;
+let movimentacoesCache = {};   // { "clinicaId_mesKey": [linhas...] }
+let ultimoDocTotais = { fatura: 0, nf: 0 };
+let perfilAtivo = 'clinica';
 
+// Faturas e avisos ainda não têm tabela/rotina no Supabase — mantidos como
+// protótipo visual até existir uma fonte de dados real (ver aviso no chat).
 const faturas = [
   { competencia: 'Julho/2026', vencimento: '10/06/2026', valor: 'R$ 3.420,00', status: 'vencido' },
   { competencia: 'Junho/2026', vencimento: '10/07/2026', valor: 'R$ 24.180,00', status: 'aberto' },
   { competencia: 'Maio/2026', vencimento: '10/06/2026', valor: 'R$ 21.640,00', status: 'pago' },
-  { competencia: 'Abril/2026', vencimento: '10/05/2026', valor: 'R$ 19.870,00', status: 'pago' },
-  { competencia: 'Março/2026', vencimento: '10/04/2026', valor: 'R$ 22.310,00', status: 'pago' },
 ];
 
-let perfilAtivo = 'clinica';
+/* =====================================================================
+   HELPERS DE REDE
+   ===================================================================== */
+
+// Chama uma função (RPC) do Postgres/Supabase.
+async function rpc(fn, params) {
+  const resp = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${SUPABASE_ANON_KEY}`
+    },
+    body: JSON.stringify(params)
+  });
+  if (!resp.ok) {
+    let detalhe = '';
+    try { detalhe = await resp.text(); } catch (e) { /* ignore */ }
+    throw new Error(`Falha em ${fn} (HTTP ${resp.status}) ${detalhe}`);
+  }
+  return resp.json();
+}
+
+// Chama a Web App do Apps Script (que por sua vez consulta o BigQuery).
+// OBS: usamos Content-Type text/plain de propósito — Web Apps do Apps Script
+// não respondem bem a preflight CORS (OPTIONS), e text/plain evita que o
+// navegador dispare esse preflight. O doPost() já faz JSON.parse do corpo
+// independente do header, então isso não muda nada do lado do servidor.
+async function chamarAppsScript(payload) {
+  const resp = await fetch(APPS_SCRIPT_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify(payload)
+  });
+  return resp.json();
+}
+
+function formatarMoeda(v) {
+  const n = typeof v === 'number' ? v : parseFloat(v || 0);
+  return 'R$ ' + n.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+}
+
+function formatarData(iso) {
+  if (!iso) return '--';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return String(iso);
+  return String(d.getDate()).padStart(2, '0') + ' ' + MESES_PT[d.getMonth()] + '/' + String(d.getFullYear()).slice(-2);
+}
+
+function formatarDataHora(iso) {
+  if (!iso) return '--';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return String(iso);
+  return String(d.getDate()).padStart(2, '0') + ' ' + MESES_PT[d.getMonth()].toLowerCase() + ', ' +
+    String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+}
+
+/* =====================================================================
+   LOGIN / SESSÃO
+   ===================================================================== */
 
 function setProfileTab(perfil) {
   perfilAtivo = perfil;
@@ -733,110 +806,293 @@ function setProfileTab(perfil) {
   document.getElementById('login-fields-clinica').classList.toggle('hidden', perfil !== 'clinica');
   document.getElementById('login-fields-gestor').classList.toggle('hidden', perfil !== 'gestor');
   document.getElementById('login-foot-text').innerHTML = perfil === 'clinica'
-    ? 'Ambiente do corpo clínico cadastrado na Livance.<br>Protótipo — dados fictícios.'
-    : 'Ambiente interno de gestão financeira da Livance.<br>Protótipo — dados fictícios.';
+    ? 'Ambiente do corpo clínico cadastrado na Livance.<br>Conectado à base real da Livance.'
+    : 'Ambiente interno de gestão financeira da Livance.<br>Conectado à base real da Livance.';
 }
 
-function enterApp() {
+function mostrarErroLogin(msg) {
+  const el = document.getElementById('login-erro');
+  el.textContent = msg;
+  el.classList.remove('hidden');
+}
+function limparErroLogin() {
+  document.getElementById('login-erro').classList.add('hidden');
+}
+
+async function tentarLogin() {
+  limparErroLogin();
+  const login = perfilAtivo === 'gestor'
+    ? document.getElementById('login-gestor-usuario').value.trim()
+    : document.getElementById('login-clinica-usuario').value.trim();
+  const senha = perfilAtivo === 'gestor'
+    ? document.getElementById('login-gestor-senha').value
+    : document.getElementById('login-clinica-senha').value;
+
+  if (!login || !senha) { mostrarErroLogin('Preencha usuário e senha.'); return; }
+
+  const btn = document.getElementById('login-btn');
+  btn.disabled = true;
+  btn.textContent = 'Entrando...';
+  try {
+    const r = await rpc('fn_login', { p_login: login, p_senha: senha });
+    if (!r.ok) {
+      mostrarErroLogin(r.erro || 'Usuário ou senha inválidos.');
+      return;
+    }
+    sessao = {
+      token: r.token,
+      tipo: r.tipo,
+      clinicaId: r.clinica_id || null,
+      clinicaNome: r.clinica_nome || null,
+      clinicaCnpj: r.clinica_cnpj || null
+    };
+    localStorage.setItem('livance_token', r.token);
+    await entrarNoPortal();
+  } catch (err) {
+    mostrarErroLogin('Não foi possível conectar ao servidor: ' + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Entrar';
+  }
+}
+
+// Ao abrir a página, tenta reaproveitar uma sessão salva (evita logar de novo
+// a cada refresh). Se o token estiver expirado, fn_validar_sessao deve
+// retornar ok:false e voltamos pra tela de login normalmente.
+async function validarSessaoSalva() {
+  const token = localStorage.getItem('livance_token');
+  if (!token) return false;
+  try {
+    const r = await rpc('fn_validar_sessao', { p_token: token });
+    if (!r || r.ok !== true) { localStorage.removeItem('livance_token'); return false; }
+    // ATENÇÃO: o formato exato de fn_validar_sessao não foi testado ainda —
+    // assumimos os mesmos campos de fn_login (tipo, clinica_id, clinica_nome,
+    // clinica_cnpj) por serem citados dessa forma no backend do Apps Script.
+    // Se os nomes vierem diferentes, ajustar aqui.
+    sessao = {
+      token,
+      tipo: r.tipo,
+      clinicaId: r.clinica_id || null,
+      clinicaNome: r.clinica_nome || null,
+      clinicaCnpj: r.clinica_cnpj || null
+    };
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+async function entrarNoPortal() {
   document.getElementById('login-screen').classList.add('hidden');
   document.getElementById('app').classList.remove('hidden');
 
-  const isGestor = perfilAtivo === 'gestor';
-  document.getElementById('sidebar-profile-name').textContent = isGestor
-    ? 'Gestão Livance · Financeiro'
-    : 'Clínica Vitalis Saúde';
+  const isGestor = sessao.tipo === 'gestor';
   document.getElementById('gestor-cadastro-membro').classList.toggle('hidden', !isGestor);
   document.getElementById('th-acoes-gestor').classList.toggle('hidden', !isGestor);
   document.getElementById('inativar-hint').classList.toggle('hidden', !isGestor);
+  document.getElementById('gestor-clinica-selector').classList.toggle('hidden', !isGestor);
 
-  renderAll();
+  if (isGestor) {
+    await carregarClinicasGestor();
+  } else {
+    document.getElementById('sidebar-profile-name').textContent = sessao.clinicaNome || 'Clínica';
+    document.getElementById('topbar-saudacao').textContent = 'Olá, ' + (sessao.clinicaNome || 'Clínica') + '!';
+  }
+
+  await carregarTudoDaClinica();
 }
-function logout() {
+
+async function logout() {
+  try { if (sessao.token) await rpc('fn_logout', { p_token: sessao.token }); } catch (e) { /* ignore */ }
+  localStorage.removeItem('livance_token');
+  sessao = { token: null, tipo: null, clinicaId: null, clinicaNome: null, clinicaCnpj: null };
   document.getElementById('app').classList.add('hidden');
   document.getElementById('login-screen').classList.remove('hidden');
 }
-function toggleAvisos() {
-  document.getElementById('avisos-panel').classList.toggle('hidden');
-}
-document.addEventListener('click', function(e) {
-  const panel = document.getElementById('avisos-panel');
-  const icon = e.target.closest('.topbar-icon');
-  if (!panel.contains(e.target) && !(icon && icon.title === 'Avisos')) {
-    panel.classList.add('hidden');
+
+/* =====================================================================
+   CLÍNICAS (só relevante pro gestor, que atende várias clínicas)
+   ===================================================================== */
+
+async function carregarClinicasGestor() {
+  try {
+    const r = await rpc('fn_listar_clinicas', { p_token: sessao.token });
+    if (!r.ok) { alert(r.erro || 'Erro ao listar clínicas.'); return; }
+    clinicasGestor = r.clinicas || [];
+  } catch (e) {
+    alert('Erro de conexão ao listar clínicas: ' + e.message);
+    clinicasGestor = [];
   }
-});
-
-function setView(view) {
-  document.querySelectorAll('.view').forEach(v => v.classList.add('hidden'));
-  document.getElementById('view-' + view).classList.remove('hidden');
-  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-  document.querySelector('.nav-item[data-view="' + view + '"]').classList.add('active');
+  const sel = document.getElementById('gestor-clinica-select');
+  sel.innerHTML = clinicasGestor.map(c => `<option value="${c.id}">${c.razao_social}</option>`).join('');
+  if (clinicasGestor.length > 0) {
+    const atual = clinicasGestor.find(c => c.id === sessao.clinicaId) || clinicasGestor[0];
+    sessao.clinicaId = atual.id;
+    sessao.clinicaNome = atual.razao_social;
+    sel.value = sessao.clinicaId;
+  }
+  document.getElementById('sidebar-profile-name').textContent = 'Gestão Livance';
+  document.getElementById('topbar-saudacao').textContent = 'Olá, gestão Livance!';
 }
 
-function statusPill(status) {
-  if (status === 'ativo') return '<span class="pill ok">Ativo</span>';
-  return '<span class="pill neutral">Inativo</span>';
+async function trocarClinicaGestor() {
+  const sel = document.getElementById('gestor-clinica-select');
+  const c = clinicasGestor.find(x => x.id === sel.value);
+  if (!c) return;
+  sessao.clinicaId = c.id;
+  sessao.clinicaNome = c.razao_social;
+  await carregarTudoDaClinica();
 }
 
-function renderOverview() {
-  const top = [...medicos].filter(m => m.status === 'ativo').sort((a,b) => b.minutos - a.minutos).slice(0,5);
-  document.getElementById('overview-table').innerHTML = top.map(m => `
-    <tr>
-      <td><div class="doc-cell">${m.nome}<span class="crm">${m.crm}</span></div></td>
-      <td>${m.esp}</td>
-      <td>${m.minutos.toLocaleString('pt-BR')}</td>
-      <td class="val">R$ ${m.valor.toLocaleString('pt-BR')}</td>
-      <td>${statusPill(m.status)}</td>
-    </tr>
-  `).join('');
+async function carregarTudoDaClinica() {
+  movimentacoesCache = {};
+  meses = gerarMeses();
+  mesAtivo = meses[meses.length - 1].key;
+  renderMonthTabs();
+
+  await Promise.all([
+    carregarMembros(),
+    carregarSolicitacoes()
+  ]);
+  await carregarMovimentacao(mesAtivo);
+
+  renderOverdueBanner();
+  renderFinanceiro();
+}
+
+/* =====================================================================
+   PROFISSIONAIS (clinica_membros)
+   ===================================================================== */
+
+function nomeExibicao(m) {
+  return m.nome_cache || '(cadastro pendente de sincronização)';
+}
+
+async function carregarMembros() {
+  try {
+    const r = await rpc('fn_listar_membros', { p_token: sessao.token, p_clinica_id: sessao.clinicaId });
+    if (!r.ok) { alert(r.erro || 'Erro ao carregar profissionais.'); membros = []; }
+    else membros = r.membros || [];
+  } catch (e) {
+    alert('Erro de conexão ao carregar profissionais: ' + e.message);
+    membros = [];
+  }
+  renderMedicos();
+  populateFiltroMedico();
+  renderOverview();
+}
+
+function statusPill(ativo) {
+  return ativo ? '<span class="pill ok">Ativo</span>' : '<span class="pill neutral">Inativo</span>';
 }
 
 function renderMedicos() {
-  const isGestor = perfilAtivo === 'gestor';
-  document.getElementById('medicos-table').innerHTML = medicos.map(m => `
+  const isGestor = sessao.tipo === 'gestor';
+  document.getElementById('medicos-table').innerHTML = membros.map(m => `
     <tr>
-      <td>${m.codigo}</td>
-      <td><div class="doc-cell">${m.nome}<span class="crm">${m.crm}</span></div></td>
-      <td>${m.cpf}</td>
-      <td>${m.esp}</td>
-      <td>${m.unidade}</td>
-      <td>${statusPill(m.status)}</td>
-      ${isGestor ? `<td>${m.status === 'ativo'
-        ? `<span class="action-link danger" onclick="inativarMembro('${m.codigo}')">Inativar</span>`
-        : `<span class="action-link" onclick="reativarMembro('${m.codigo}')">Reativar</span>`}</td>` : ''}
+      <td>${m.cod_usuario}</td>
+      <td><div class="doc-cell">${nomeExibicao(m)}<span class="crm">${m.crm_cache || '--'}</span></div></td>
+      <td>${m.cpf_cache || '--'}</td>
+      <td>${m.especialidade_cache || '--'}</td>
+      <td>${m.unidade_cache || '--'}</td>
+      <td>${statusPill(m.ativo_local)}</td>
+      ${isGestor ? `<td>${m.ativo_local
+        ? `<span class="action-link danger" onclick="inativarMembro('${m.id}')">Inativar</span>`
+        : `<span class="action-link" onclick="reativarMembro('${m.id}')">Reativar</span>`}</td>` : ''}
     </tr>
-  `).join('');
+  `).join('') || `<tr><td colspan="7"><div class="empty-state">Nenhum profissional cadastrado nesta clínica.</div></td></tr>`;
 }
 
-function buscarMembro() {
-  const codigo = document.getElementById('codigo-membro-input').value.trim();
-  if (!codigo) return;
-  const existente = medicos.find(m => m.codigo.toLowerCase() === codigo.toLowerCase());
-  if (existente) {
-    alert('Código já cadastrado neste corpo clínico: ' + existente.nome + '.\n\nEm produção, aqui o sistema consultaria o banco de dados da Livance pelo código informado e preencheria nome, CPF, CRM, especialidade e unidade automaticamente.');
-  } else {
-    alert('Buscando código ' + codigo + ' no banco de dados da Livance...\n\nEm produção, isso preencheria automaticamente nome, CPF, CRM, especialidade e unidade, sem digitação manual.');
+async function inativarMembro(id) { await alterarStatusMembro(id, false); }
+async function reativarMembro(id) { await alterarStatusMembro(id, true); }
+
+async function alterarStatusMembro(id, ativo) {
+  try {
+    const r = await rpc('fn_alterar_status_membro', { p_token: sessao.token, p_membro_id: id, p_ativo: ativo });
+    if (!r.ok) { alert(r.erro || 'Não foi possível alterar o status.'); return; }
+    await carregarMembros();
+  } catch (e) {
+    alert('Erro de conexão: ' + e.message);
   }
-  document.getElementById('codigo-membro-input').value = '';
-}
-
-function inativarMembro(codigo) {
-  const m = medicos.find(x => x.codigo === codigo);
-  if (m) { m.status = 'inativo'; renderMedicos(); renderOverview(); }
-}
-function reativarMembro(codigo) {
-  const m = medicos.find(x => x.codigo === codigo);
-  if (m) { m.status = 'ativo'; renderMedicos(); renderOverview(); }
 }
 
 function populateFiltroMedico() {
   const sel = document.getElementById('filtro-medico');
-  medicos.forEach(m => {
-    const opt = document.createElement('option');
-    opt.value = m.nome;
-    opt.textContent = m.nome;
-    sel.appendChild(opt);
-  });
+  sel.innerHTML = '<option value="todos">Todos os médicos</option>' +
+    membros.map(m => `<option value="${m.cod_usuario}">${nomeExibicao(m)}</option>`).join('');
+}
+
+// Inclusão de membro por código — feita em 2 passos:
+// 1) grava o vínculo no Supabase (fn_adicionar_membro);
+// 2) busca os dados cadastrais reais no BigQuery via Apps Script e
+//    atualiza o cache local (fn_atualizar_cache_membro).
+//
+// ATENÇÃO — dois pontos pra confirmar antes de usar em produção:
+//  a) não testamos fn_adicionar_membro (é uma escrita, não quisemos rodar
+//     sem combinar com você) — assumimos que ela devolve algo como
+//     { ok: true, membro: { id: "..." , ... } }. Se o campo do id vier com
+//     outro nome, é só me falar que ajusto.
+//  b) a consulta ao BigQuery no Apps Script (acaoMembro) hoje só traz
+//     nomeCompleto, cpf e especialidade — não traz CRM nem unidade. Então
+//     esses dois campos vão continuar em branco até alguém adicionar essas
+//     colunas na consulta SQL do Code.gs (se existirem na tabela stg_membros).
+async function buscarESalvarMembro() {
+  const input = document.getElementById('codigo-membro-input');
+  const cod = parseInt(input.value.trim(), 10);
+  if (!cod || cod <= 0) { alert('Informe um código numérico válido.'); return; }
+
+  const jaExiste = membros.find(m => m.cod_usuario === cod);
+  if (jaExiste) { alert('Código já cadastrado neste corpo clínico: ' + nomeExibicao(jaExiste)); return; }
+
+  try {
+    const criado = await rpc('fn_adicionar_membro', {
+      p_token: sessao.token, p_clinica_id: sessao.clinicaId, p_cod_usuario: cod
+    });
+    if (!criado.ok) { alert(criado.erro || 'Não foi possível adicionar o membro.'); return; }
+
+    const membroId = (criado.membro && criado.membro.id) || criado.id || null;
+
+    const dadosBQ = await chamarAppsScript({ acao: 'membro', token: sessao.token, cod: cod });
+    if (dadosBQ.ok && dadosBQ.membro && membroId) {
+      const m = dadosBQ.membro;
+      await rpc('fn_atualizar_cache_membro', {
+        p_token: sessao.token,
+        p_membro_id: membroId,
+        p_nome: m.nomeCompleto || null,
+        p_cpf: m.cpf || null,
+        p_especialidade: m.especialidade || null,
+        p_crm: null,      // ver nota acima — BigQuery não devolve CRM hoje
+        p_unidade: null   // ver nota acima — BigQuery não devolve unidade hoje
+      });
+    } else if (!dadosBQ.ok) {
+      alert('Membro adicionado, mas não foi possível buscar os dados no banco da Livance agora: ' + (dadosBQ.erro || 'erro desconhecido') + '\nOs campos ficarão em branco até uma nova sincronização.');
+    }
+  } catch (e) {
+    alert('Erro ao buscar/salvar membro: ' + e.message);
+  }
+  input.value = '';
+  await carregarMembros();
+}
+
+/* =====================================================================
+   MOVIMENTAÇÕES (via Apps Script → BigQuery)
+   ===================================================================== */
+
+function gerarMeses() {
+  const hoje = new Date();
+  const arr = [];
+  for (let i = 4; i >= 0; i--) {
+    const d = new Date(hoje.getFullYear(), hoje.getMonth() - i, 1);
+    const key = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+    arr.push({
+      key,
+      label: '01 ' + MESES_PT[d.getMonth()],
+      sub: i === 0 ? '(ABERTA)' : '',
+      ano: d.getFullYear(),
+      mesNum: d.getMonth() + 1
+    });
+  }
+  return arr;
 }
 
 function renderMonthTabs() {
@@ -848,19 +1104,74 @@ function renderMonthTabs() {
   `).join('');
 }
 
-function selectMonth(key) {
+async function selectMonth(key) {
   mesAtivo = key;
   renderMonthTabs();
-  renderMovimentacao();
+  await carregarMovimentacao(key);
 }
 
-function renderMovimentacao() {
-  const fMedico = document.getElementById('filtro-medico').value;
-  const showMedicoCol = fMedico === 'todos';
+// ATENÇÃO: o mapeamento de codmodalidadefiscal → tipo de documento ainda não
+// foi confirmado com a equipe. Ajuste os códigos assim que souber os valores
+// reais que vêm do BigQuery (hoje é só um placeholder pra não travar a tela).
+function mapearDocumento(codigoFiscal) {
+  const mapa = { '1': 'nota_fiscal', '2': 'fatura_locacao' };
+  return mapa[String(codigoFiscal)] || 'outro';
+}
+
+async function carregarMovimentacao(mesKey) {
+  const mesObj = meses.find(m => m.key === mesKey);
+  if (!mesObj) return;
+
+  const dataInicio = mesObj.ano + '-' + String(mesObj.mesNum).padStart(2, '0') + '-01';
+  const ultimoDia = new Date(mesObj.ano, mesObj.mesNum, 0).getDate();
+  const dataFim = mesObj.ano + '-' + String(mesObj.mesNum).padStart(2, '0') + '-' + String(ultimoDia).padStart(2, '0');
+
+  const cacheKey = sessao.clinicaId + '_' + mesKey;
+  if (movimentacoesCache[cacheKey]) {
+    renderMovimentacao(movimentacoesCache[cacheKey]);
+    return;
+  }
+
+  const tbody = document.getElementById('movimentacao-table');
+  tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state">Carregando movimentações...</div></td></tr>`;
+
+  try {
+    const r = await chamarAppsScript({
+      acao: 'movimentacoes',
+      token: sessao.token,
+      clinica_id: sessao.clinicaId,
+      dataInicio, dataFim
+    });
+    if (!r.ok) {
+      tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state">${r.erro || 'Erro ao carregar movimentações.'}</div></td></tr>`;
+      return;
+    }
+    movimentacoesCache[cacheKey] = r.movimentacoes || [];
+    renderMovimentacao(movimentacoesCache[cacheKey]);
+  } catch (e) {
+    tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state">Erro de conexão: ${e.message}</div></td></tr>`;
+  }
+}
+
+function renderMovimentacao(linhasBrutas) {
+  const fCod = document.getElementById('filtro-medico').value;
+  const showMedicoCol = fCod === 'todos';
   document.getElementById('th-medico').classList.toggle('hidden', !showMedicoCol);
 
-  let rows = movimentacoes.filter(r => r.mes === mesAtivo && !r.credito);
-  if (fMedico !== 'todos') rows = rows.filter(r => r.medico === fMedico);
+  let rows = linhasBrutas.map(r => {
+    const membro = membros.find(m => String(m.cod_usuario) === String(r.codusuario));
+    return {
+      data: formatarData(r.datamovimentacao),
+      unidade: (membro && membro.unidade_cache) || '--',
+      medicoNome: membro ? nomeExibicao(membro) : ('Código ' + r.codusuario),
+      codusuario: r.codusuario,
+      desc: r.descricaoexterna,
+      valor: parseFloat(r.valormovimentacao || 0),
+      documento: mapearDocumento(r.codmodalidadefiscal)
+    };
+  });
+
+  if (fCod !== 'todos') rows = rows.filter(r => String(r.codusuario) === String(fCod));
 
   const tbody = document.getElementById('movimentacao-table');
   if (rows.length === 0) {
@@ -870,50 +1181,70 @@ function renderMovimentacao() {
       <tr>
         <td>${r.data}</td>
         <td>${r.unidade}</td>
-        ${showMedicoCol ? `<td>${r.medico}</td>` : ''}
+        ${showMedicoCol ? `<td>${r.medicoNome}</td>` : ''}
         <td>${r.desc}</td>
-        <td class="val ${r.valor < 0 ? 'neg' : 'pos'}">${r.valor < 0 ? '-' : ''}R$ ${Math.abs(r.valor).toLocaleString('pt-BR', {minimumFractionDigits:2})}</td>
+        <td class="val ${r.valor < 0 ? 'neg' : 'pos'}">${r.valor < 0 ? '-' : ''}${formatarMoeda(Math.abs(r.valor))}</td>
       </tr>
     `).join('');
   }
 
-  const credito = movimentacoes.find(r => r.mes === mesAtivo && r.credito);
-  const creditCard = document.getElementById('credit-card');
-  if (credito) {
-    creditCard.innerHTML = `
-      <div class="credit-label">Creditado</div>
-      <div class="credit-value">R$ ${credito.valor.toLocaleString('pt-BR', {minimumFractionDigits:2})}</div>
-      <div class="credit-due">Vencimento <b>${credito.vencimento}</b></div>
-    `;
-  } else {
-    const total = rows.reduce((s, r) => s + r.valor, 0);
-    creditCard.innerHTML = `
-      <div class="credit-label">Total do período</div>
-      <div class="credit-value">R$ ${total.toLocaleString('pt-BR', {minimumFractionDigits:2})}</div>
-      <div class="credit-due">${rows.length} lançamento${rows.length !== 1 ? 's' : ''}</div>
-    `;
-  }
+  const total = rows.reduce((s, r) => s + r.valor, 0);
+  document.getElementById('credit-card').innerHTML = `
+    <div class="credit-label">Total do período</div>
+    <div class="credit-value">${formatarMoeda(total)}</div>
+    <div class="credit-due">${rows.length} lançamento${rows.length !== 1 ? 's' : ''}</div>
+  `;
 
   const totalFatura = rows.filter(r => r.documento === 'fatura_locacao').reduce((s, r) => s + r.valor, 0);
   const totalNF = rows.filter(r => r.documento === 'nota_fiscal').reduce((s, r) => s + r.valor, 0);
+  ultimoDocTotais = { fatura: totalFatura, nf: totalNF };
   document.getElementById('doc-totals-row').innerHTML = `
     <div class="doc-total-card">
       <span class="doc-total-label">Fatura de locação</span>
-      <span class="doc-total-value">R$ ${totalFatura.toLocaleString('pt-BR', {minimumFractionDigits:2})}</span>
+      <span class="doc-total-value">${formatarMoeda(totalFatura)}</span>
     </div>
     <div class="doc-total-card">
       <span class="doc-total-label">Nota fiscal</span>
-      <span class="doc-total-value">R$ ${totalNF.toLocaleString('pt-BR', {minimumFractionDigits:2})}</span>
+      <span class="doc-total-value">${formatarMoeda(totalNF)}</span>
     </div>
   `;
+
+  if (mesAtivo === meses[meses.length - 1].key) atualizarMetricasHome();
 }
 
+/* =====================================================================
+   HOME / VISÃO GERAL
+   ===================================================================== */
+
+function renderOverview() {
+  const ativos = membros.filter(m => m.ativo_local);
+  document.getElementById('overview-table').innerHTML = ativos.slice(0, 5).map(m => `
+    <tr>
+      <td><div class="doc-cell">${nomeExibicao(m)}<span class="crm">${m.crm_cache || '--'}</span></div></td>
+      <td>${m.especialidade_cache || '--'}</td>
+      <td>--</td>
+      <td class="val">--</td>
+      <td>${statusPill(m.ativo_local)}</td>
+    </tr>
+  `).join('') || `<tr><td colspan="5"><div class="empty-state">Nenhum profissional ativo.</div></td></tr>`;
+
+  document.getElementById('metric-medicos-ativos').textContent = ativos.length;
+  document.getElementById('metric-medicos-sub').textContent = `de ${membros.length} cadastrados`;
+}
+
+function atualizarMetricasHome() {
+  document.getElementById('metric-fatura-locacao').textContent = formatarMoeda(ultimoDocTotais.fatura);
+  document.getElementById('metric-nota-fiscal').textContent = formatarMoeda(ultimoDocTotais.nf);
+  document.getElementById('metric-total-mes').textContent = formatarMoeda(ultimoDocTotais.fatura + ultimoDocTotais.nf);
+}
+
+// Faturas (Financeiro) ainda não tem tabela/rotina real — mantido como
+// protótipo visual, sinalizado no aviso abaixo.
 function statusFaturaPill(status) {
   if (status === 'pago') return '<span class="pill ok">Pago</span>';
   if (status === 'vencido') return '<span class="pill warn">Vencido</span>';
   return '<span class="pill neutral">Em aberto</span>';
 }
-
 function renderFinanceiro() {
   document.getElementById('financeiro-table').innerHTML = faturas.map(f => `
     <tr>
@@ -926,15 +1257,10 @@ function renderFinanceiro() {
     </tr>
   `).join('');
 }
-
 function renderOverdueBanner() {
   const banner = document.getElementById('overdue-banner');
   const vencidas = faturas.filter(f => f.status === 'vencido');
-  if (vencidas.length === 0) {
-    banner.innerHTML = '';
-    banner.classList.add('hidden');
-    return;
-  }
+  if (vencidas.length === 0) { banner.innerHTML = ''; banner.classList.add('hidden'); return; }
   banner.classList.remove('hidden');
   banner.onclick = () => setView('financeiro');
   banner.innerHTML = `
@@ -944,105 +1270,212 @@ function renderOverdueBanner() {
   `;
 }
 
-const tickets = [
-  {
-    id: 1,
-    assunto: 'Inclusão de novo médico',
-    tipo: 'Inclusão de médico',
-    status: 'aberto',
-    data: '24 jun, 2026',
-    mensagens: [
-      { de: 'clinica', texto: 'Gostaríamos de incluir o Dr. Marcos Tannuri (CRM 88210, Cardiologia) no nosso corpo clínico. Segue o contrato social anexo.', data: '24 jun, 09:12', anexo: 'contrato-social.pdf' },
-      { de: 'gestao', texto: 'Recebemos a solicitação, Marina. Vamos validar o CRM e o documento e retornamos em até 2 dias úteis.', data: '24 jun, 11:40' },
-    ]
-  },
-  {
-    id: 2,
-    assunto: 'Dúvida sobre mensalidade em duplicidade',
-    tipo: 'Dúvida',
-    status: 'encerrado',
-    data: '18 jun, 2026',
-    mensagens: [
-      { de: 'clinica', texto: 'Reparamos duas cobranças de mensalidade pra Dra. Camila Borges em junho. Poderiam verificar?', data: '18 jun, 14:05' },
-      { de: 'gestao', texto: 'Verificamos e identificamos um lançamento duplicado por erro de sistema. Já estornamos o valor de R$ 259,00, deve aparecer no extrato em até 48h.', data: '19 jun, 10:22' },
-      { de: 'clinica', texto: 'Perfeito, obrigada pelo retorno rápido!', data: '19 jun, 10:30' },
-    ]
-  },
-];
-let ticketAtivo = 1;
+/* =====================================================================
+   SOLICITAÇÕES / CHAT
+   ===================================================================== */
 
-function renderTickets() {
-  const list = document.getElementById('tickets-items');
-  list.innerHTML = tickets.map(t => `
-    <div class="ticket-item ${t.id === ticketAtivo ? 'active' : ''}" onclick="abrirTicket(${t.id})">
-      <div class="ticket-top">
-        <span class="ticket-subject">${t.assunto}</span>
-        <span class="status-tag ${t.status}">${t.status}</span>
-      </div>
-      <div class="ticket-preview">${t.mensagens[t.mensagens.length - 1].texto}</div>
-      <div class="ticket-meta">${t.tipo} · ${t.data}</div>
-    </div>
-  `).join('');
-  renderChat();
-}
-
-function abrirTicket(id) {
-  ticketAtivo = id;
+async function carregarSolicitacoes() {
+  try {
+    const r = await rpc('fn_listar_solicitacoes', { p_token: sessao.token });
+    if (!r.ok) { alert(r.erro || 'Erro ao carregar solicitações.'); solicitacoes = []; }
+    else solicitacoes = r.solicitacoes || [];
+  } catch (e) {
+    alert('Erro de conexão ao carregar solicitações: ' + e.message);
+    solicitacoes = [];
+  }
+  if (solicitacoes.length > 0 && !solicitacoes.find(t => t.id === solicitacaoAtivaId)) {
+    solicitacaoAtivaId = solicitacoes[0].id;
+  }
   renderTickets();
 }
 
-function renderChat() {
-  const t = tickets.find(x => x.id === ticketAtivo);
-  const wrap = document.getElementById('ticket-chat');
-  if (!t) {
-    wrap.innerHTML = `<div class="empty-chat">Selecione um chamado para visualizar a conversa.</div>`;
-    return;
+function renderTickets() {
+  const list = document.getElementById('tickets-items');
+  if (solicitacoes.length === 0) {
+    list.innerHTML = `<div class="empty-chat" style="padding:32px 18px;">Nenhum chamado ainda. Clique em "+ Nova" pra abrir o primeiro.</div>`;
+  } else {
+    list.innerHTML = solicitacoes.map(t => `
+      <div class="ticket-item ${t.id === solicitacaoAtivaId ? 'active' : ''}" onclick="abrirTicket('${t.id}')">
+        <div class="ticket-top">
+          <span class="ticket-subject">${t.assunto}</span>
+          <span class="status-tag ${t.status}">${t.status}</span>
+        </div>
+        <div class="ticket-meta">${formatarDataHora(t.created_at)}</div>
+      </div>
+    `).join('');
   }
+  if (solicitacaoAtivaId) carregarMensagens(solicitacaoAtivaId);
+  else document.getElementById('ticket-chat').innerHTML = `<div class="empty-chat">Selecione um chamado para visualizar a conversa.</div>`;
+}
+
+async function abrirTicket(id) {
+  solicitacaoAtivaId = id;
+  renderTickets();
+}
+
+async function carregarMensagens(id) {
+  const wrap = document.getElementById('ticket-chat');
+  const t = solicitacoes.find(x => x.id === id);
+  if (!t) return;
+  wrap.innerHTML = `<div class="empty-chat">Carregando conversa...</div>`;
+  try {
+    const r = await rpc('fn_listar_mensagens', { p_token: sessao.token, p_solicitacao_id: id });
+    if (!r.ok) { wrap.innerHTML = `<div class="empty-chat">${r.erro || 'Erro ao carregar mensagens.'}</div>`; return; }
+    renderChat(t, r.mensagens || []);
+  } catch (e) {
+    wrap.innerHTML = `<div class="empty-chat">Erro de conexão: ${e.message}</div>`;
+  }
+}
+
+// ATENÇÃO: assumimos que o campo "autor" em solicitacao_mensagens vem como
+// texto 'clinica' ou 'gestao' (é assim que o protótipo original diferenciava
+// os lados da conversa). Se os valores reais forem outros (ex: um login ou
+// e-mail), é só me passar um exemplo de fn_listar_mensagens que eu ajusto
+// essa comparação.
+function renderChat(t, mensagens) {
+  const wrap = document.getElementById('ticket-chat');
+  const podeEnviar = t.status !== 'encerrado';
+  const podeEncerrar = sessao.tipo === 'gestor' && t.status !== 'encerrado';
   wrap.innerHTML = `
     <div class="ticket-chat-header">
       <div class="ticket-chat-subject">${t.assunto}</div>
-      <div class="ticket-chat-tags"><span class="status-tag ${t.status}">${t.status}</span> ${t.tipo} · aberto em ${t.data}</div>
+      <div class="ticket-chat-tags">
+        <span class="status-tag ${t.status}">${t.status}</span> aberto em ${formatarDataHora(t.created_at)}
+        ${podeEncerrar ? `<span class="action-link" style="margin-left:10px" onclick="encerrarSolicitacao('${t.id}')">Encerrar chamado</span>` : ''}
+      </div>
     </div>
-    <div class="chat-messages">
-      ${t.mensagens.map(m => `
-        <div class="chat-msg ${m.de}">
-          <div class="chat-bubble">
-            ${m.texto}
-            ${m.anexo ? `<div class="chat-attach">&#128206; ${m.anexo}</div>` : ''}
-          </div>
-          <div class="chat-meta">${m.de === 'clinica' ? 'Você' : 'Livance'} · ${m.data}</div>
+    <div class="chat-messages" id="chat-messages-box">
+      ${mensagens.map(m => `
+        <div class="chat-msg ${m.autor === 'clinica' ? 'clinica' : 'gestao'}">
+          <div class="chat-bubble">${m.texto}</div>
+          <div class="chat-meta">${m.autor === 'clinica' ? 'Clínica' : 'Livance'} · ${formatarDataHora(m.created_at)}</div>
         </div>
-      `).join('')}
+      `).join('') || '<div class="empty-chat">Sem mensagens ainda.</div>'}
     </div>
     <div class="chat-input-row">
-      <span class="attach-btn" title="Anexar documento">&#128206;</span>
-      <input type="text" placeholder="${t.status === 'encerrado' ? 'Chamado encerrado' : 'Escreva uma mensagem...'}" ${t.status === 'encerrado' ? 'disabled' : ''}>
-      <button class="btn primary" style="padding:9px 16px" ${t.status === 'encerrado' ? 'disabled' : ''}>Enviar</button>
+      <span class="attach-btn" title="Anexo ainda não integrado ao banco">&#128206;</span>
+      <input type="text" id="chat-input-texto" placeholder="${podeEnviar ? 'Escreva uma mensagem...' : 'Chamado encerrado'}" ${podeEnviar ? '' : 'disabled'}
+        onkeydown="if(event.key==='Enter') enviarMensagem('${t.id}')">
+      <button class="btn primary" style="padding:9px 16px" ${podeEnviar ? '' : 'disabled'} onclick="enviarMensagem('${t.id}')">Enviar</button>
     </div>
   `;
+  const box = document.getElementById('chat-messages-box');
+  if (box) box.scrollTop = box.scrollHeight;
+}
+
+async function enviarMensagem(solicitacaoId) {
+  const input = document.getElementById('chat-input-texto');
+  const texto = input.value.trim();
+  if (!texto) return;
+  try {
+    const r = await rpc('fn_enviar_mensagem', { p_token: sessao.token, p_solicitacao_id: solicitacaoId, p_texto: texto });
+    if (!r.ok) { alert(r.erro || 'Não foi possível enviar a mensagem.'); return; }
+    input.value = '';
+    await carregarMensagens(solicitacaoId);
+  } catch (e) {
+    alert('Erro de conexão: ' + e.message);
+  }
+}
+
+async function encerrarSolicitacao(id) {
+  if (!confirm('Encerrar este chamado?')) return;
+  try {
+    const r = await rpc('fn_alterar_status_solicitacao', { p_token: sessao.token, p_solicitacao_id: id, p_status: 'encerrado' });
+    if (!r.ok) { alert(r.erro || 'Não foi possível encerrar o chamado.'); return; }
+    await carregarSolicitacoes();
+  } catch (e) {
+    alert('Erro de conexão: ' + e.message);
+  }
 }
 
 function novaSolicitacao() {
-  alert('Aqui abriria o formulário de nova solicitação: tipo (Dúvida / Inclusão de médico / Exclusão de médico / Alteração de CNPJ), descrição e anexo.');
+  document.getElementById('nova-sol-assunto').value = '';
+  document.getElementById('nova-sol-mensagem').value = '';
+  document.getElementById('nova-sol-erro').classList.add('hidden');
+  document.getElementById('modal-nova-solicitacao').classList.remove('hidden');
+}
+function fecharModalNovaSolicitacao() {
+  document.getElementById('modal-nova-solicitacao').classList.add('hidden');
+}
+async function enviarNovaSolicitacao() {
+  const assunto = document.getElementById('nova-sol-assunto').value.trim();
+  const mensagem = document.getElementById('nova-sol-mensagem').value.trim();
+  const erroEl = document.getElementById('nova-sol-erro');
+  if (!assunto || !mensagem) {
+    erroEl.textContent = 'Preencha assunto e mensagem.';
+    erroEl.classList.remove('hidden');
+    return;
+  }
+  if (sessao.tipo === 'gestor' && !sessao.clinicaId) {
+    erroEl.textContent = 'Selecione uma clínica antes de abrir um chamado.';
+    erroEl.classList.remove('hidden');
+    return;
+  }
+  const btn = document.getElementById('nova-sol-btn');
+  btn.disabled = true;
+  try {
+    const r = await rpc('fn_criar_solicitacao', {
+      p_token: sessao.token, p_clinica_id: sessao.clinicaId, p_assunto: assunto, p_mensagem: mensagem
+    });
+    if (!r.ok) {
+      erroEl.textContent = r.erro || 'Não foi possível criar a solicitação.';
+      erroEl.classList.remove('hidden');
+      return;
+    }
+    fecharModalNovaSolicitacao();
+    await carregarSolicitacoes();
+  } catch (e) {
+    erroEl.textContent = 'Erro de conexão: ' + e.message;
+    erroEl.classList.remove('hidden');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+/* =====================================================================
+   NAVEGAÇÃO / UI GERAL (sem mudança de lógica de negócio)
+   ===================================================================== */
+
+function toggleAvisos() {
+  document.getElementById('avisos-panel').classList.toggle('hidden');
+}
+document.addEventListener('click', function (e) {
+  const panel = document.getElementById('avisos-panel');
+  const icon = e.target.closest('.topbar-icon');
+  if (!panel.contains(e.target) && !(icon && icon.title === 'Avisos')) {
+    panel.classList.add('hidden');
+  }
+});
+
+function setView(view) {
+  document.querySelectorAll('.view').forEach(v => v.classList.add('hidden'));
+  document.getElementById('view-' + view).classList.remove('hidden');
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.querySelector('.nav-item[data-view="' + view + '"]').classList.add('active');
+  if (view === 'movimentacao') carregarMovimentacao(mesAtivo);
 }
 
 function abrirSolicitacaoCnpj() {
   setView('solicitacoes');
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.querySelector('.nav-item[data-view="solicitacoes"]').classList.add('active');
-  alert('Abriria o formulário de nova solicitação já com o tipo "Alteração de CNPJ" pré-selecionado.');
+  novaSolicitacao();
+  document.getElementById('nova-sol-assunto').value = 'Alteração de CNPJ';
 }
 
-function renderAll() {
-  renderTickets();
-  renderOverview();
-  renderOverdueBanner();
-  renderMedicos();
-  populateFiltroMedico();
-  renderMonthTabs();
-  renderMovimentacao();
-  renderFinanceiro();
+function renderMovimentacaoAtual() {
+  const cacheKey = sessao.clinicaId + '_' + mesAtivo;
+  renderMovimentacao(movimentacoesCache[cacheKey] || []);
 }
+
+/* =====================================================================
+   INICIALIZAÇÃO
+   ===================================================================== */
+
+window.addEventListener('DOMContentLoaded', async function () {
+  const ok = await validarSessaoSalva();
+  if (ok) await entrarNoPortal();
+});
 </script>
 
 </body>
