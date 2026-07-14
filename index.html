@@ -553,37 +553,55 @@
         <div class="page-title">Cadastros</div>
         <div class="breadcrumb"><a href="#">Home</a> / <span class="current">Cadastros</span></div>
 
-        <div class="card form-card">
-          <div class="form-section-title">Dados da empresa</div>
-          <div class="form-grid">
-            <div class="form-field"><label>Razão social</label><input type="text" value="Clínica Vitalis Saúde Ltda."></div>
-            <div class="form-field"><label>Nome fantasia</label><input type="text" value="Clínica Vitalis"></div>
-            <div class="form-field locked">
-              <label>CNPJ</label>
-              <input type="text" value="12.345.678/0001-90" readonly>
-              <span class="locked-hint" onclick="abrirSolicitacaoCnpj()">Solicitar alteração de CNPJ</span>
-            </div>
-            <div class="form-field"><label>Regime tributário</label><input type="text" value="Simples Nacional"></div>
-            <div class="form-field"><label>Inscrição estadual</label><input type="text" value="Isento"></div>
-            <div class="form-field"><label>Data de cadastro</label><input type="text" value="14/03/2024" readonly></div>
-            <div class="form-field"><label>Unidade principal</label><input type="text" value="Vila Clementino, São Paulo"></div>
-            <div class="form-field"><label>Plano contratado</label><input type="text" value="Corpo clínico · Pay-per-use" readonly></div>
-            <div class="form-field"><label>Responsável financeiro</label><input type="text" value="Marina Costa Lima"></div>
+        <!-- Lista de clínicas — só aparece pro gestor Livance -->
+        <div id="cadastro-lista" class="hidden">
+          <div class="toolbar-row">
+            <button class="btn primary" style="margin-left:auto" onclick="novaClinica()">+ Nova clínica</button>
           </div>
-          <button class="btn primary" style="margin-top:18px">Salvar alterações</button>
+          <div class="card">
+            <table>
+              <thead><tr><th>Razão social</th><th>CNPJ</th><th>Tributação</th><th></th></tr></thead>
+              <tbody id="clinicas-lista-table"></tbody>
+            </table>
+          </div>
         </div>
 
-        <div class="card form-card">
-          <div class="form-section-title">Endereço fiscal</div>
-          <div class="form-grid">
-            <div class="form-field"><label>Logradouro</label><input type="text" value="R. Agostinho Rodrigues Filho, 550"></div>
-            <div class="form-field"><label>Bairro</label><input type="text" value="Vila Clementino"></div>
-            <div class="form-field"><label>Cidade / UF</label><input type="text" value="São Paulo / SP"></div>
-            <div class="form-field"><label>CEP</label><input type="text" value="04026-040"></div>
-            <div class="form-field"><label>E-mail financeiro</label><input type="text" value="financeiro@vitalis.com.br"></div>
-            <div class="form-field"><label>Telefone</label><input type="text" value="(11) 4002-8922"></div>
+        <!-- Edição de uma clínica específica -->
+        <div id="cadastro-editar">
+          <button class="btn hidden" id="btn-voltar-lista-clinicas" style="margin-bottom:16px" onclick="voltarListaClinicas()">&larr; Voltar para lista de clínicas</button>
+
+          <div class="card form-card">
+            <div class="form-section-title">Dados da empresa</div>
+            <div class="form-grid">
+              <div class="form-field"><label>Razão social</label><input type="text" id="cad-razao-social"></div>
+              <div class="form-field locked">
+                <label>CNPJ</label>
+                <input type="text" id="cad-cnpj">
+                <span class="locked-hint" id="cad-cnpj-hint" onclick="abrirSolicitacaoCnpj()">Solicitar alteração de CNPJ</span>
+              </div>
+              <div class="form-field"><label>Regime tributário</label><input type="text" id="cad-tributacao"></div>
+              <div class="form-field"><label>E-mail de contato</label><input type="text" id="cad-email"></div>
+            </div>
+            <div id="cad-erro" class="hidden" style="color:var(--red); font-size:12px; margin-top:12px;"></div>
+            <button class="btn primary" id="cad-salvar-btn" style="margin-top:18px" onclick="salvarClinica()">Salvar alterações</button>
+            <p class="gestor-hint">Os demais campos do protótipo original (nome fantasia, inscrição estadual, unidade principal, plano, endereço fiscal etc.) ainda não têm coluna correspondente no banco — foram retirados daqui até existir onde salvar.</p>
           </div>
-          <button class="btn primary" style="margin-top:18px">Salvar alterações</button>
+
+          <div class="card form-card">
+            <div class="form-section-title">Corpo clínico desta empresa</div>
+            <div style="display:flex; gap:10px; align-items:flex-end; margin-bottom: 4px;">
+              <div class="form-field" style="flex:1">
+                <label>Código do membro (banco Livance)</label>
+                <input type="text" placeholder="Ex: 11315" id="cadastro-codigo-membro-input">
+              </div>
+              <button class="btn primary" style="padding:9px 18px" onclick="cadastroAdicionarMembro()">Buscar e salvar</button>
+            </div>
+            <p class="gestor-hint" style="margin-bottom:14px;">Ao salvar, nome, CPF e especialidade são preenchidos automaticamente a partir do banco de dados da Livance.</p>
+            <table>
+              <thead><tr><th>Código</th><th>Nome</th><th>Especialidade</th><th>Status</th><th>Ações</th></tr></thead>
+              <tbody id="cadastro-membros-table"></tbody>
+            </table>
+          </div>
         </div>
       </div>
 
@@ -702,6 +720,24 @@
     <div style="display:flex; gap:10px; justify-content:flex-end;">
       <button class="btn" onclick="fecharModalNovaSolicitacao()">Cancelar</button>
       <button class="btn primary" id="nova-sol-btn" onclick="enviarNovaSolicitacao()">Criar chamado</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== MODAL NOVA CLÍNICA ===================== -->
+<div id="modal-nova-clinica" class="hidden" style="position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:200; display:flex; align-items:center; justify-content:center;">
+  <div class="card form-card" style="width:460px; max-width:90vw;">
+    <div class="form-section-title">Nova clínica</div>
+    <div class="form-grid" style="grid-template-columns:1fr;">
+      <div class="form-field"><label style="display:block;font-size:11.5px;color:var(--text-soft);margin-bottom:5px;">Razão social</label><input type="text" id="nova-clinica-razao" style="width:100%;"></div>
+      <div class="form-field"><label style="display:block;font-size:11.5px;color:var(--text-soft);margin-bottom:5px;">CNPJ</label><input type="text" id="nova-clinica-cnpj" placeholder="00.000.000/0001-00" style="width:100%;"></div>
+      <div class="form-field"><label style="display:block;font-size:11.5px;color:var(--text-soft);margin-bottom:5px;">Regime tributário</label><input type="text" id="nova-clinica-tributacao" placeholder="Presumido/Real" style="width:100%;"></div>
+      <div class="form-field"><label style="display:block;font-size:11.5px;color:var(--text-soft);margin-bottom:5px;">E-mail de contato</label><input type="text" id="nova-clinica-email" style="width:100%;"></div>
+    </div>
+    <div id="nova-clinica-erro" class="hidden" style="color:var(--red); font-size:12px; margin-top:10px;"></div>
+    <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:16px;">
+      <button class="btn" onclick="fecharModalNovaClinica()">Cancelar</button>
+      <button class="btn primary" id="nova-clinica-btn" onclick="salvarNovaClinica()">Criar clínica</button>
     </div>
   </div>
 </div>
@@ -1036,22 +1072,15 @@ function populateFiltroMedico() {
 //     nomeCompleto, cpf e especialidade — não traz CRM nem unidade. Então
 //     esses dois campos vão continuar em branco até alguém adicionar essas
 //     colunas na consulta SQL do Code.gs (se existirem na tabela stg_membros).
-async function buscarESalvarMembro() {
-  const input = document.getElementById('codigo-membro-input');
-  const cod = parseInt(input.value.trim(), 10);
-  if (!cod || cod <= 0) { alert('Informe um código numérico válido.'); return; }
+async function adicionarMembroPorCodigo(clinicaId, cod) {
+  const criado = await rpc('fn_adicionar_membro', {
+    p_token: sessao.token, p_clinica_id: clinicaId, p_cod_usuario: cod
+  });
+  if (!criado.ok) return criado;
 
-  const jaExiste = membros.find(m => m.cod_usuario === cod);
-  if (jaExiste) { alert('Código já cadastrado neste corpo clínico: ' + nomeExibicao(jaExiste)); return; }
+  const membroId = (criado.membro && criado.membro.id) || criado.id || null;
 
   try {
-    const criado = await rpc('fn_adicionar_membro', {
-      p_token: sessao.token, p_clinica_id: sessao.clinicaId, p_cod_usuario: cod
-    });
-    if (!criado.ok) { alert(criado.erro || 'Não foi possível adicionar o membro.'); return; }
-
-    const membroId = (criado.membro && criado.membro.id) || criado.id || null;
-
     const dadosBQ = await chamarAppsScript({ acao: 'membro', token: sessao.token, cod: cod });
     if (dadosBQ.ok && dadosBQ.membro && membroId) {
       const m = dadosBQ.membro;
@@ -1065,13 +1094,227 @@ async function buscarESalvarMembro() {
         p_unidade: null   // ver nota acima — BigQuery não devolve unidade hoje
       });
     } else if (!dadosBQ.ok) {
-      alert('Membro adicionado, mas não foi possível buscar os dados no banco da Livance agora: ' + (dadosBQ.erro || 'erro desconhecido') + '\nOs campos ficarão em branco até uma nova sincronização.');
+      criado.avisoSincronizacao = dadosBQ.erro || 'não foi possível buscar os dados no banco da Livance agora';
     }
+  } catch (e) {
+    criado.avisoSincronizacao = 'erro de conexão ao sincronizar com a Livance: ' + e.message;
+  }
+  return criado;
+}
+
+async function buscarESalvarMembro() {
+  const input = document.getElementById('codigo-membro-input');
+  const cod = parseInt(input.value.trim(), 10);
+  if (!cod || cod <= 0) { alert('Informe um código numérico válido.'); return; }
+
+  const jaExiste = membros.find(m => m.cod_usuario === cod);
+  if (jaExiste) { alert('Código já cadastrado neste corpo clínico: ' + nomeExibicao(jaExiste)); return; }
+
+  try {
+    const r = await adicionarMembroPorCodigo(sessao.clinicaId, cod);
+    if (!r.ok) { alert(r.erro || 'Não foi possível adicionar o membro.'); return; }
+    if (r.avisoSincronizacao) alert('Membro adicionado, mas ' + r.avisoSincronizacao + '. Os campos ficarão em branco até uma nova sincronização.');
   } catch (e) {
     alert('Erro ao buscar/salvar membro: ' + e.message);
   }
   input.value = '';
   await carregarMembros();
+}
+
+/* =====================================================================
+   CADASTRO (clínicas) — visão gestor: lista + edição / visão clínica: edição direto
+   ===================================================================== */
+
+let clinicaEditandoId = null;
+let membrosClinicaEditando = [];
+
+async function abrirTelaCadastro() {
+  if (sessao.tipo === 'gestor') {
+    document.getElementById('cadastro-lista').classList.remove('hidden');
+    document.getElementById('cadastro-editar').classList.add('hidden');
+    await renderListaClinicas();
+  } else {
+    document.getElementById('cadastro-lista').classList.add('hidden');
+    document.getElementById('btn-voltar-lista-clinicas').classList.add('hidden');
+    await abrirEdicaoClinica(sessao.clinicaId);
+  }
+}
+
+async function renderListaClinicas() {
+  try {
+    const r = await rpc('fn_listar_clinicas', { p_token: sessao.token });
+    if (r.ok) clinicasGestor = r.clinicas || [];
+  } catch (e) {
+    alert('Erro ao listar clínicas: ' + e.message);
+  }
+  document.getElementById('clinicas-lista-table').innerHTML = clinicasGestor.map(c => `
+    <tr>
+      <td>${c.razao_social}</td>
+      <td>${c.cnpj}</td>
+      <td>${c.tributacao || '--'}</td>
+      <td><span class="action-link" onclick="abrirEdicaoClinica('${c.id}')">Editar</span></td>
+    </tr>
+  `).join('') || `<tr><td colspan="4"><div class="empty-state">Nenhuma clínica cadastrada.</div></td></tr>`;
+}
+
+async function abrirEdicaoClinica(clinicaId) {
+  clinicaEditandoId = clinicaId;
+  const c = clinicasGestor.find(x => x.id === clinicaId);
+
+  document.getElementById('cadastro-lista').classList.add('hidden');
+  document.getElementById('cadastro-editar').classList.remove('hidden');
+  document.getElementById('btn-voltar-lista-clinicas').classList.toggle('hidden', sessao.tipo !== 'gestor');
+
+  document.getElementById('cad-razao-social').value = c ? c.razao_social : (sessao.clinicaNome || '');
+  document.getElementById('cad-cnpj').value = c ? c.cnpj : (sessao.clinicaCnpj || '');
+  document.getElementById('cad-tributacao').value = (c && c.tributacao) || '';
+  document.getElementById('cad-email').value = (c && c.email_contato) || '';
+  document.getElementById('cad-erro').classList.add('hidden');
+
+  const cnpjInput = document.getElementById('cad-cnpj');
+  cnpjInput.readOnly = sessao.tipo !== 'gestor';
+  document.getElementById('cad-cnpj-hint').classList.toggle('hidden', sessao.tipo === 'gestor');
+
+  await carregarMembrosClinicaEditando(clinicaId);
+}
+
+function voltarListaClinicas() {
+  document.getElementById('cadastro-editar').classList.add('hidden');
+  document.getElementById('cadastro-lista').classList.remove('hidden');
+  renderListaClinicas();
+}
+
+// ATENÇÃO: fn_atualizar_clinica ainda não existe na lista de rotinas que
+// você me passou — só existe fn_criar_clinica. Deixei a chamada pronta;
+// se a função ainda não tiver sido criada no Supabase, isso vai falhar
+// com um erro claro (não trava a tela, só avisa).
+async function salvarClinica() {
+  const razao = document.getElementById('cad-razao-social').value.trim();
+  const cnpj = document.getElementById('cad-cnpj').value.trim();
+  const tributacao = document.getElementById('cad-tributacao').value.trim();
+  const email = document.getElementById('cad-email').value.trim();
+  const erroEl = document.getElementById('cad-erro');
+  erroEl.classList.add('hidden');
+
+  if (!razao || !cnpj) { erroEl.textContent = 'Preencha ao menos razão social e CNPJ.'; erroEl.classList.remove('hidden'); return; }
+
+  const btn = document.getElementById('cad-salvar-btn');
+  btn.disabled = true;
+  try {
+    const r = await rpc('fn_atualizar_clinica', {
+      p_token: sessao.token, p_clinica_id: clinicaEditandoId,
+      p_razao: razao, p_cnpj: cnpj, p_tributacao: tributacao, p_email: email
+    });
+    if (!r.ok) {
+      erroEl.textContent = r.erro || 'Não foi possível salvar.';
+      erroEl.classList.remove('hidden');
+      return;
+    }
+    alert('Dados salvos com sucesso.');
+    if (sessao.tipo === 'gestor') await renderListaClinicas();
+  } catch (e) {
+    erroEl.textContent = 'Essa ação depende da função fn_atualizar_clinica, que ainda não existe no banco (só existe fn_criar_clinica). Erro: ' + e.message;
+    erroEl.classList.remove('hidden');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function carregarMembrosClinicaEditando(clinicaId) {
+  const tbody = document.getElementById('cadastro-membros-table');
+  tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state">Carregando...</div></td></tr>`;
+  try {
+    const r = await rpc('fn_listar_membros', { p_token: sessao.token, p_clinica_id: clinicaId });
+    if (!r.ok) { tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state">${r.erro || 'Erro ao carregar membros.'}</div></td></tr>`; return; }
+    membrosClinicaEditando = r.membros || [];
+  } catch (e) {
+    tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state">Erro de conexão: ${e.message}</div></td></tr>`;
+    return;
+  }
+  renderMembrosClinicaEditando();
+}
+
+function renderMembrosClinicaEditando() {
+  document.getElementById('cadastro-membros-table').innerHTML = membrosClinicaEditando.map(m => `
+    <tr>
+      <td>${m.cod_usuario}</td>
+      <td>${nomeExibicao(m)}</td>
+      <td>${m.especialidade_cache || '--'}</td>
+      <td>${statusPill(m.ativo_local)}</td>
+      <td>${m.ativo_local
+        ? `<span class="action-link danger" onclick="alterarStatusMembroClinicaEditando('${m.id}', false)">Inativar</span>`
+        : `<span class="action-link" onclick="alterarStatusMembroClinicaEditando('${m.id}', true)">Reativar</span>`}</td>
+    </tr>
+  `).join('') || `<tr><td colspan="5"><div class="empty-state">Nenhum membro incluído ainda.</div></td></tr>`;
+}
+
+async function alterarStatusMembroClinicaEditando(membroId, ativo) {
+  try {
+    const r = await rpc('fn_alterar_status_membro', { p_token: sessao.token, p_membro_id: membroId, p_ativo: ativo });
+    if (!r.ok) { alert(r.erro || 'Não foi possível alterar o status.'); return; }
+    await carregarMembrosClinicaEditando(clinicaEditandoId);
+    // se for a mesma clínica que está ativa na navegação, mantém a tela Profissionais em sincronia
+    if (clinicaEditandoId === sessao.clinicaId) await carregarMembros();
+  } catch (e) {
+    alert('Erro de conexão: ' + e.message);
+  }
+}
+
+async function cadastroAdicionarMembro() {
+  const input = document.getElementById('cadastro-codigo-membro-input');
+  const cod = parseInt(input.value.trim(), 10);
+  if (!cod || cod <= 0) { alert('Informe um código numérico válido.'); return; }
+
+  const jaExiste = membrosClinicaEditando.find(m => m.cod_usuario === cod);
+  if (jaExiste) { alert('Código já cadastrado nesta clínica: ' + nomeExibicao(jaExiste)); return; }
+
+  try {
+    const r = await adicionarMembroPorCodigo(clinicaEditandoId, cod);
+    if (!r.ok) { alert(r.erro || 'Não foi possível adicionar o membro.'); return; }
+    if (r.avisoSincronizacao) alert('Membro adicionado, mas ' + r.avisoSincronizacao + '. Os campos ficarão em branco até uma nova sincronização.');
+  } catch (e) {
+    alert('Erro ao buscar/salvar membro: ' + e.message);
+  }
+  input.value = '';
+  await carregarMembrosClinicaEditando(clinicaEditandoId);
+  if (clinicaEditandoId === sessao.clinicaId) await carregarMembros();
+}
+
+function novaClinica() {
+  document.getElementById('nova-clinica-razao').value = '';
+  document.getElementById('nova-clinica-cnpj').value = '';
+  document.getElementById('nova-clinica-tributacao').value = '';
+  document.getElementById('nova-clinica-email').value = '';
+  document.getElementById('nova-clinica-erro').classList.add('hidden');
+  document.getElementById('modal-nova-clinica').classList.remove('hidden');
+}
+function fecharModalNovaClinica() {
+  document.getElementById('modal-nova-clinica').classList.add('hidden');
+}
+async function salvarNovaClinica() {
+  const razao = document.getElementById('nova-clinica-razao').value.trim();
+  const cnpj = document.getElementById('nova-clinica-cnpj').value.trim();
+  const tributacao = document.getElementById('nova-clinica-tributacao').value.trim();
+  const email = document.getElementById('nova-clinica-email').value.trim();
+  const erroEl = document.getElementById('nova-clinica-erro');
+
+  if (!razao || !cnpj) { erroEl.textContent = 'Preencha ao menos razão social e CNPJ.'; erroEl.classList.remove('hidden'); return; }
+
+  const btn = document.getElementById('nova-clinica-btn');
+  btn.disabled = true;
+  try {
+    const r = await rpc('fn_criar_clinica', {
+      p_token: sessao.token, p_razao: razao, p_cnpj: cnpj, p_tributacao: tributacao, p_email: email
+    });
+    if (!r.ok) { erroEl.textContent = r.erro || 'Não foi possível criar a clínica.'; erroEl.classList.remove('hidden'); return; }
+    fecharModalNovaClinica();
+    await renderListaClinicas();
+  } catch (e) {
+    erroEl.textContent = 'Erro de conexão: ' + e.message;
+    erroEl.classList.remove('hidden');
+  } finally {
+    btn.disabled = false;
+  }
 }
 
 /* =====================================================================
@@ -1453,6 +1696,7 @@ function setView(view) {
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.querySelector('.nav-item[data-view="' + view + '"]').classList.add('active');
   if (view === 'movimentacao') carregarMovimentacao(mesAtivo);
+  if (view === 'cadastro') abrirTelaCadastro();
 }
 
 function abrirSolicitacaoCnpj() {
