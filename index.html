@@ -555,6 +555,12 @@
 
         <!-- Lista de clínicas — só aparece pro gestor Livance -->
         <div id="cadastro-lista" class="hidden">
+          <div class="filter-row">
+            <div class="filter-field wide">
+              <div class="field-label">Buscar clínica</div>
+              <input type="text" id="filtro-clinica-busca" placeholder="Razão social ou CNPJ..." oninput="renderListaClinicas()">
+            </div>
+          </div>
           <div class="toolbar-row">
             <button class="btn primary" style="margin-left:auto" onclick="novaClinica()">+ Nova clínica</button>
           </div>
@@ -1132,7 +1138,7 @@ async function abrirTelaCadastro() {
   if (sessao.tipo === 'gestor') {
     document.getElementById('cadastro-lista').classList.remove('hidden');
     document.getElementById('cadastro-editar').classList.add('hidden');
-    await renderListaClinicas();
+    await carregarClinicasLista();
   } else {
     document.getElementById('cadastro-lista').classList.add('hidden');
     document.getElementById('btn-voltar-lista-clinicas').classList.add('hidden');
@@ -1140,21 +1146,30 @@ async function abrirTelaCadastro() {
   }
 }
 
-async function renderListaClinicas() {
+async function carregarClinicasLista() {
   try {
     const r = await rpc('fn_listar_clinicas', { p_token: sessao.token });
     if (r.ok) clinicasGestor = r.clinicas || [];
   } catch (e) {
     alert('Erro ao listar clínicas: ' + e.message);
   }
-  document.getElementById('clinicas-lista-table').innerHTML = clinicasGestor.map(c => `
+  renderListaClinicas();
+}
+
+function renderListaClinicas() {
+  const busca = (document.getElementById('filtro-clinica-busca').value || '').trim().toLowerCase();
+  const lista = !busca ? clinicasGestor : clinicasGestor.filter(c =>
+    (c.razao_social || '').toLowerCase().includes(busca) ||
+    (c.cnpj || '').toLowerCase().includes(busca)
+  );
+  document.getElementById('clinicas-lista-table').innerHTML = lista.map(c => `
     <tr>
       <td>${c.razao_social}</td>
       <td>${c.cnpj}</td>
       <td>${c.tributacao || '--'}</td>
       <td><span class="action-link" onclick="abrirEdicaoClinica('${c.id}')">Editar</span></td>
     </tr>
-  `).join('') || `<tr><td colspan="4"><div class="empty-state">Nenhuma clínica cadastrada.</div></td></tr>`;
+  `).join('') || `<tr><td colspan="4"><div class="empty-state">${busca ? 'Nenhuma clínica encontrada para essa busca.' : 'Nenhuma clínica cadastrada.'}</div></td></tr>`;
 }
 
 async function abrirEdicaoClinica(clinicaId) {
@@ -1181,7 +1196,7 @@ async function abrirEdicaoClinica(clinicaId) {
 function voltarListaClinicas() {
   document.getElementById('cadastro-editar').classList.add('hidden');
   document.getElementById('cadastro-lista').classList.remove('hidden');
-  renderListaClinicas();
+  carregarClinicasLista();
 }
 
 // ATENÇÃO: fn_atualizar_clinica ainda não existe na lista de rotinas que
@@ -1211,7 +1226,7 @@ async function salvarClinica() {
       return;
     }
     alert('Dados salvos com sucesso.');
-    if (sessao.tipo === 'gestor') await renderListaClinicas();
+    if (sessao.tipo === 'gestor') await carregarClinicasLista();
   } catch (e) {
     erroEl.textContent = 'Essa ação depende da função fn_atualizar_clinica, que ainda não existe no banco (só existe fn_criar_clinica). Erro: ' + e.message;
     erroEl.classList.remove('hidden');
@@ -1308,7 +1323,7 @@ async function salvarNovaClinica() {
     });
     if (!r.ok) { erroEl.textContent = r.erro || 'Não foi possível criar a clínica.'; erroEl.classList.remove('hidden'); return; }
     fecharModalNovaClinica();
-    await renderListaClinicas();
+    await carregarClinicasLista();
   } catch (e) {
     erroEl.textContent = 'Erro de conexão: ' + e.message;
     erroEl.classList.remove('hidden');
