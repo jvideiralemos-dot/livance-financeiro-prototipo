@@ -603,6 +603,9 @@
               <button class="btn primary" style="padding:9px 18px" onclick="cadastroAdicionarMembro()">Buscar e salvar</button>
             </div>
             <p class="gestor-hint" style="margin-bottom:14px;">Ao salvar, nome, CPF e especialidade são preenchidos automaticamente a partir do banco de dados da Livance.</p>
+            <div class="toolbar-row" style="margin-bottom:8px;">
+              <button class="btn hidden" id="btn-sincronizar-todos-cadastro" style="margin-left:auto" onclick="sincronizarTodosPendentes(membrosClinicaEditando, 'cadastro')">Sincronizar pendentes</button>
+            </div>
             <table>
               <thead><tr><th>Código</th><th>Nome</th><th>Especialidade</th><th>Status</th><th>Ações</th></tr></thead>
               <tbody id="cadastro-membros-table"></tbody>
@@ -629,6 +632,7 @@
         </div>
 
         <div class="toolbar-row">
+          <button class="btn hidden" id="btn-sincronizar-todos-medicos" onclick="sincronizarTodosPendentes(membros, 'profissionais')">Sincronizar pendentes</button>
           <button class="btn" style="margin-left:auto"><span class="btn-icon">&#8595;</span>Exportar</button>
         </div>
 
@@ -744,6 +748,23 @@
     <div style="display:flex; gap:10px; justify-content:flex-end; margin-top:16px;">
       <button class="btn" onclick="fecharModalNovaClinica()">Cancelar</button>
       <button class="btn primary" id="nova-clinica-btn" onclick="salvarNovaClinica()">Criar clínica</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== MODAL INATIVAR MEMBRO ===================== -->
+<div id="modal-inativar" class="hidden" style="position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:200; display:flex; align-items:center; justify-content:center;">
+  <div class="card form-card" style="width:400px; max-width:90vw;">
+    <div class="form-section-title">Inativar profissional</div>
+    <p class="gestor-hint" style="margin-bottom:14px;">A partir da data de corte, esse profissional deixa de aparecer nas movimentações da clínica — mas tudo que ele usou até essa data continua visível normalmente.</p>
+    <div class="form-field" style="margin-bottom:16px;">
+      <label style="display:block;font-size:11.5px;color:var(--text-soft);margin-bottom:5px;">Data de corte (último dia considerado)</label>
+      <input type="date" id="inativar-data-corte" style="width:100%;">
+    </div>
+    <div id="inativar-erro" class="hidden" style="color:var(--red); font-size:12px; margin-bottom:10px;"></div>
+    <div style="display:flex; gap:10px; justify-content:flex-end;">
+      <button class="btn" onclick="fecharModalInativar()">Cancelar</button>
+      <button class="btn primary" id="inativar-btn" onclick="confirmarInativar()">Inativar</button>
     </div>
   </div>
 </div>
@@ -1028,8 +1049,26 @@ function statusPill(ativo) {
   return ativo ? '<span class="pill ok">Ativo</span>' : '<span class="pill neutral">Inativo</span>';
 }
 
+function formatarDataBR(isoDate) {
+  if (!isoDate) return '--';
+  const [ano, mes, dia] = String(isoDate).slice(0, 10).split('-');
+  return `${dia}/${mes}/${ano}`;
+}
+
+// Mostra o selo de status junto com a data de corte, quando o membro estiver
+// inativo com uma data definida (ex: "Inativo · até 14/07/2026").
+function statusPillComData(m) {
+  const pill = statusPill(m.ativo_local);
+  if (!m.ativo_local && m.data_corte) {
+    return pill + `<div style="font-size:10.5px;color:var(--text-faint);margin-top:3px;">até ${formatarDataBR(m.data_corte)}</div>`;
+  }
+  return pill;
+}
+
 function renderMedicos() {
   const isGestor = sessao.tipo === 'gestor';
+  const pendentes = membros.filter(m => !m.nome_cache).length;
+  document.getElementById('btn-sincronizar-todos-medicos').classList.toggle('hidden', !isGestor || pendentes === 0);
   document.getElementById('medicos-table').innerHTML = membros.map(m => `
     <tr>
       <td>${m.cod_usuario}</td>
@@ -1037,31 +1076,77 @@ function renderMedicos() {
       <td>${m.cpf_cache || '--'}</td>
       <td>${m.especialidade_cache || '--'}</td>
       <td>${m.unidade_cache || '--'}</td>
-      <td>${statusPill(m.ativo_local)}</td>
-      ${isGestor ? `<td>${m.ativo_local
-        ? `<span class="action-link danger" onclick="inativarMembro('${m.id}')">Inativar</span>`
-        : `<span class="action-link" onclick="reativarMembro('${m.id}')">Reativar</span>`}</td>` : ''}
+      <td>${statusPillComData(m)}</td>
+      ${isGestor ? `<td>
+        ${!m.nome_cache ? `<span class="action-link" onclick="sincronizarMembro('${m.id}', ${m.cod_usuario}, 'profissionais')">Sincronizar</span>` : ''}
+        ${m.ativo_local
+          ? `<span class="action-link danger" onclick="abrirModalInativar('${m.id}', 'profissionais')">Inativar</span>`
+          : `<span class="action-link" onclick="reativarMembro('${m.id}', 'profissionais')">Reativar</span>`}</td>` : ''}
     </tr>
   `).join('') || `<tr><td colspan="7"><div class="empty-state">Nenhum profissional cadastrado nesta clínica.</div></td></tr>`;
 }
 
-async function inativarMembro(id) { await alterarStatusMembro(id, false); }
-async function reativarMembro(id) { await alterarStatusMembro(id, true); }
+// Estado do modal de inativação — guarda qual membro e em qual tela
+// (Profissionais ou Cadastro) pra recarregar a lista certa depois.
+let membroParaInativar = null;
+let contextoInativar = null;
 
-async function alterarStatusMembro(id, ativo) {
+function abrirModalInativar(id, contexto) {
+  membroParaInativar = id;
+  contextoInativar = contexto;
+  document.getElementById('inativar-data-corte').value = new Date().toISOString().slice(0, 10);
+  document.getElementById('inativar-erro').classList.add('hidden');
+  document.getElementById('modal-inativar').classList.remove('hidden');
+}
+function fecharModalInativar() {
+  document.getElementById('modal-inativar').classList.add('hidden');
+}
+async function confirmarInativar() {
+  const data = document.getElementById('inativar-data-corte').value;
+  const erroEl = document.getElementById('inativar-erro');
+  if (!data) { erroEl.textContent = 'Informe a data de corte.'; erroEl.classList.remove('hidden'); return; }
+
+  const btn = document.getElementById('inativar-btn');
+  btn.disabled = true;
   try {
-    const r = await rpc('fn_alterar_status_membro', { p_token: sessao.token, p_membro_id: id, p_ativo: ativo });
-    if (!r.ok) { alert(r.erro || 'Não foi possível alterar o status.'); return; }
-    await carregarMembros();
+    const r = await rpc('fn_alterar_status_membro', {
+      p_token: sessao.token, p_membro_id: membroParaInativar, p_ativo: false, p_data_corte: data
+    });
+    if (!r.ok) { erroEl.textContent = r.erro || 'Não foi possível inativar.'; erroEl.classList.remove('hidden'); return; }
+    fecharModalInativar();
+    await recarregarAposMudancaDeStatus();
+  } catch (e) {
+    erroEl.textContent = 'Erro de conexão: ' + e.message;
+    erroEl.classList.remove('hidden');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function reativarMembro(id, contexto) {
+  try {
+    const r = await rpc('fn_alterar_status_membro', { p_token: sessao.token, p_membro_id: id, p_ativo: true });
+    if (!r.ok) { alert(r.erro || 'Não foi possível reativar.'); return; }
+    contextoInativar = contexto;
+    await recarregarAposMudancaDeStatus();
   } catch (e) {
     alert('Erro de conexão: ' + e.message);
+  }
+}
+
+async function recarregarAposMudancaDeStatus() {
+  if (contextoInativar === 'cadastro') {
+    await carregarMembrosClinicaEditando(clinicaEditandoId);
+    if (clinicaEditandoId === sessao.clinicaId) await carregarMembros();
+  } else {
+    await carregarMembros();
   }
 }
 
 function populateFiltroMedico() {
   const sel = document.getElementById('filtro-medico');
   sel.innerHTML = '<option value="todos">Todos os médicos</option>' +
-    membros.map(m => `<option value="${m.cod_usuario}">${nomeExibicao(m)}</option>`).join('');
+    membros.map(m => `<option value="${m.cod_usuario}">${nomeExibicao(m)}${!m.ativo_local ? ' (inativo)' : ''}</option>`).join('');
 }
 
 // Inclusão de membro por código — feita em 2 passos:
@@ -1085,27 +1170,61 @@ async function adicionarMembroPorCodigo(clinicaId, cod) {
   if (!criado.ok) return criado;
 
   const membroId = (criado.membro && criado.membro.id) || criado.id || null;
-
-  try {
-    const dadosBQ = await chamarAppsScript({ acao: 'membro', token: sessao.token, cod: cod });
-    if (dadosBQ.ok && dadosBQ.membro && membroId) {
-      const m = dadosBQ.membro;
-      await rpc('fn_atualizar_cache_membro', {
-        p_token: sessao.token,
-        p_membro_id: membroId,
-        p_nome: m.nomeCompleto || null,
-        p_cpf: m.cpf || null,
-        p_especialidade: m.especialidade || null,
-        p_crm: null,      // ver nota acima — BigQuery não devolve CRM hoje
-        p_unidade: null   // ver nota acima — BigQuery não devolve unidade hoje
-      });
-    } else if (!dadosBQ.ok) {
-      criado.avisoSincronizacao = dadosBQ.erro || 'não foi possível buscar os dados no banco da Livance agora';
-    }
-  } catch (e) {
-    criado.avisoSincronizacao = 'erro de conexão ao sincronizar com a Livance: ' + e.message;
+  if (membroId) {
+    const sync = await sincronizarCacheMembro(membroId, cod);
+    if (!sync.ok) criado.avisoSincronizacao = sync.erro;
   }
   return criado;
+}
+
+// Busca os dados reais no BigQuery (via Apps Script) e atualiza o cache de um
+// membro já existente no Supabase. Usada tanto na inclusão de um membro novo
+// quanto no botão "Sincronizar" pra quem já está cadastrado sem cache
+// (ex: os 13 códigos que foram inseridos direto no banco, sem passar por
+// esse fluxo, e por isso aparecem como "cadastro pendente de sincronização").
+async function sincronizarCacheMembro(membroId, cod) {
+  try {
+    const dadosBQ = await chamarAppsScript({ acao: 'membro', token: sessao.token, cod: cod });
+    if (!dadosBQ.ok || !dadosBQ.membro) {
+      return { ok: false, erro: dadosBQ.erro || 'não foi possível buscar os dados no banco da Livance agora' };
+    }
+    const m = dadosBQ.membro;
+    const r = await rpc('fn_atualizar_cache_membro', {
+      p_token: sessao.token,
+      p_membro_id: membroId,
+      p_nome: m.nomeCompleto || null,
+      p_cpf: m.cpf || null,
+      p_especialidade: m.especialidade || null,
+      p_crm: null,      // BigQuery não devolve CRM hoje (ver nota na consulta acaoMembro do Apps Script)
+      p_unidade: null   // BigQuery não devolve unidade hoje
+    });
+    if (!r.ok) return { ok: false, erro: r.erro || 'Supabase recusou salvar o cache.' };
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, erro: 'erro de conexão ao sincronizar com a Livance: ' + e.message };
+  }
+}
+
+async function sincronizarMembro(membroId, codUsuario, contexto) {
+  const r = await sincronizarCacheMembro(membroId, codUsuario);
+  if (!r.ok) { alert('Não foi possível sincronizar: ' + r.erro); return; }
+  if (contexto === 'cadastro') await carregarMembrosClinicaEditando(clinicaEditandoId);
+  else await carregarMembros();
+}
+
+async function sincronizarTodosPendentes(lista, contexto) {
+  const pendentes = lista.filter(m => !m.nome_cache);
+  if (pendentes.length === 0) { alert('Não há membros pendentes de sincronização.'); return; }
+  if (!confirm(`Sincronizar ${pendentes.length} membro(s) pendente(s)? Isso pode levar alguns segundos.`)) return;
+
+  let falhas = 0;
+  for (const m of pendentes) {
+    const r = await sincronizarCacheMembro(m.id, m.cod_usuario);
+    if (!r.ok) falhas++;
+  }
+  if (contexto === 'cadastro') await carregarMembrosClinicaEditando(clinicaEditandoId);
+  else await carregarMembros();
+  alert(falhas === 0 ? 'Sincronização concluída.' : `Sincronização concluída com ${falhas} erro(s). Veja se algum código não existe no banco da Livance.`);
 }
 
 async function buscarESalvarMembro() {
@@ -1250,29 +1369,22 @@ async function carregarMembrosClinicaEditando(clinicaId) {
 }
 
 function renderMembrosClinicaEditando() {
+  const pendentes = membrosClinicaEditando.filter(m => !m.nome_cache).length;
+  document.getElementById('btn-sincronizar-todos-cadastro').classList.toggle('hidden', pendentes === 0);
   document.getElementById('cadastro-membros-table').innerHTML = membrosClinicaEditando.map(m => `
     <tr>
       <td>${m.cod_usuario}</td>
       <td>${nomeExibicao(m)}</td>
       <td>${m.especialidade_cache || '--'}</td>
-      <td>${statusPill(m.ativo_local)}</td>
-      <td>${m.ativo_local
-        ? `<span class="action-link danger" onclick="alterarStatusMembroClinicaEditando('${m.id}', false)">Inativar</span>`
-        : `<span class="action-link" onclick="alterarStatusMembroClinicaEditando('${m.id}', true)">Reativar</span>`}</td>
+      <td>${statusPillComData(m)}</td>
+      <td>
+        ${!m.nome_cache ? `<span class="action-link" onclick="sincronizarMembro('${m.id}', ${m.cod_usuario}, 'cadastro')">Sincronizar</span>` : ''}
+        ${m.ativo_local
+          ? `<span class="action-link danger" onclick="abrirModalInativar('${m.id}', 'cadastro')">Inativar</span>`
+          : `<span class="action-link" onclick="reativarMembro('${m.id}', 'cadastro')">Reativar</span>`}
+      </td>
     </tr>
   `).join('') || `<tr><td colspan="5"><div class="empty-state">Nenhum membro incluído ainda.</div></td></tr>`;
-}
-
-async function alterarStatusMembroClinicaEditando(membroId, ativo) {
-  try {
-    const r = await rpc('fn_alterar_status_membro', { p_token: sessao.token, p_membro_id: membroId, p_ativo: ativo });
-    if (!r.ok) { alert(r.erro || 'Não foi possível alterar o status.'); return; }
-    await carregarMembrosClinicaEditando(clinicaEditandoId);
-    // se for a mesma clínica que está ativa na navegação, mantém a tela Profissionais em sincronia
-    if (clinicaEditandoId === sessao.clinicaId) await carregarMembros();
-  } catch (e) {
-    alert('Erro de conexão: ' + e.message);
-  }
 }
 
 async function cadastroAdicionarMembro() {
@@ -1419,14 +1531,25 @@ function renderMovimentacao(linhasBrutas) {
   let rows = linhasBrutas.map(r => {
     const membro = membros.find(m => String(m.cod_usuario) === String(r.codusuario));
     return {
+      dataRaw: r.datamovimentacao,
       data: formatarData(r.datamovimentacao),
       unidade: (membro && membro.unidade_cache) || '--',
       medicoNome: membro ? nomeExibicao(membro) : ('Código ' + r.codusuario),
       codusuario: r.codusuario,
       desc: r.descricaoexterna,
       valor: parseFloat(r.valormovimentacao || 0),
-      documento: mapearDocumento(r.codmodalidadefiscal)
+      documento: mapearDocumento(r.codmodalidadefiscal),
+      membroInativoComCorte: !!(membro && !membro.ativo_local && membro.data_corte),
+      dataCorte: membro ? membro.data_corte : null
     };
+  });
+
+  // Médico inativado com data de corte: some das movimentações depois dessa
+  // data, mas continua aparecendo normalmente em tudo até ela (fechamento
+  // financeiro do período em que ele ainda atendia).
+  rows = rows.filter(r => {
+    if (!r.membroInativoComCorte) return true;
+    return new Date(r.dataRaw) <= new Date(r.dataCorte + 'T23:59:59');
   });
 
   if (fCod !== 'todos') rows = rows.filter(r => String(r.codusuario) === String(fCod));
