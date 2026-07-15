@@ -775,6 +775,9 @@
    ===================================================================== */
 const SUPABASE_URL = 'https://mwqaheysdhvftghfcfjb.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im13cWFoZXlzZGh2ZnRnaGZjZmpiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE2MzI4MzgsImV4cCI6MjA5NzIwODgzOH0.o4zdgzpEiB4sbr4f9WvnBvyMqgTTtsMA_y2A_ldSa8k';
+// Não é mais chamada direto daqui — o navegador não consegue acessar essa URL
+// por causa de CORS (ver nota em chamarAppsScript). Ela agora só é usada de
+// dentro da Edge Function "swift-service" do Supabase, que atua como proxy.
 const APPS_SCRIPT_URL = 'https://script.google.com/a/macros/livance.com.br/s/AKfycby8VIIIh1w8SNHf4niEdSO84eXBYnO7oLhZKc88yWjNcjkixjpdZs52s64PJJQMJ4xa/exec';
 
 const MESES_PT = ['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ'];
@@ -829,10 +832,20 @@ async function rpc(fn, params) {
 // não respondem bem a preflight CORS (OPTIONS), e text/plain evita que o
 // navegador dispare esse preflight. O doPost() já faz JSON.parse do corpo
 // independente do header, então isso não muda nada do lado do servidor.
+// Chama a Web App do Apps Script através da Edge Function "swift-service" do
+// Supabase, que funciona como proxy. Necessário porque o Apps Script não tem
+// como devolver o cabeçalho Access-Control-Allow-Origin — a chamada direta
+// do navegador é sempre bloqueada por CORS, mesmo com a URL certa e pública.
+// A Edge Function chama o Apps Script servidor-a-servidor (sem essa restrição)
+// e devolve a resposta já liberada pro nosso front-end.
 async function chamarAppsScript(payload) {
-  const resp = await fetch(APPS_SCRIPT_URL, {
+  const resp = await fetch(`${SUPABASE_URL}/functions/v1/swift-service`, {
     method: 'POST',
-    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    headers: {
+      'Content-Type': 'application/json',
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${SUPABASE_ANON_KEY}`
+    },
     body: JSON.stringify(payload)
   });
   return resp.json();
