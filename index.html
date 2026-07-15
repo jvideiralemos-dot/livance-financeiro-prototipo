@@ -450,6 +450,21 @@
   </div>
 </div>
 
+<!-- ===================== TROCA DE SENHA OBRIGATÓRIA ===================== -->
+<div id="troca-senha-screen" class="login-screen hidden">
+  <div class="login-card">
+    <div class="login-mark">LIVANCE</div>
+    <div class="login-sub">Defina sua nova senha</div>
+    <p class="gestor-hint" style="margin-bottom:16px;">Essa é sua primeira vez entrando (ou sua senha foi resetada). Antes de continuar, defina uma senha só sua — mínimo de 8 caracteres.</p>
+
+    <div class="login-field"><label>Nova senha</label><input type="password" id="troca-senha-nova"></div>
+    <div class="login-field"><label>Confirmar nova senha</label><input type="password" id="troca-senha-confirmar"></div>
+    <div id="troca-senha-erro" class="hidden" style="color:var(--red);font-size:12px;margin-bottom:12px;line-height:1.5;"></div>
+
+    <button class="btn primary login-btn" id="troca-senha-btn" onclick="confirmarTrocaSenhaObrigatoria()">Salvar e entrar</button>
+  </div>
+</div>
+
 <!-- ===================== APP ===================== -->
 <div class="app hidden" id="app">
   <div class="sidebar">
@@ -467,11 +482,14 @@
       <button class="nav-item" data-view="cadastro" onclick="setView('cadastro')">
         <span class="left"><span class="icon">&#9633;</span> Cadastro</span>
       </button>
-      <button class="nav-item" data-view="medicos" onclick="setView('medicos')">
+      <button class="nav-item" id="nav-profissionais" data-view="medicos" onclick="setView('medicos')">
         <span class="left"><span class="icon">&#9679;</span> Profissionais</span>
       </button>
       <button class="nav-item" data-view="movimentacao" onclick="setView('movimentacao')">
         <span class="left"><span class="icon">&#8645;</span> Movimentações</span>
+      </button>
+      <button class="nav-item" data-view="relatorios" onclick="setView('relatorios')">
+        <span class="left"><span class="icon">&#9776;</span> Relatórios</span>
       </button>
       <button class="nav-item" data-view="financeiro" onclick="setView('financeiro')">
         <span class="left"><span class="icon">&#9783;</span> Financeiro</span> <span class="chev">›</span>
@@ -489,6 +507,7 @@
       </div>
       <div class="topbar-right">
         <span id="topbar-saudacao">Olá!</span>
+        <span class="topbar-icon hidden" id="icon-gerenciar-acessos" onclick="abrirModalAcessos()" title="Gerenciar acessos ao portal">&#128274;</span>
         <span class="topbar-icon logout-icon" onclick="logout()" title="Sair">&#9211;</span>
       </div>
 
@@ -542,7 +561,7 @@
 
         <div class="card">
           <table>
-            <thead><tr><th>Médico</th><th>Especialidade</th><th>Minutos no período</th><th>Valor gerado</th><th>Status</th></tr></thead>
+            <thead><tr><th>Médico</th><th>Especialidade</th><th>Fatura de Locação</th><th>Nota Fiscal</th><th>Total</th><th>Status</th></tr></thead>
             <tbody id="overview-table"></tbody>
           </table>
         </div>
@@ -593,21 +612,21 @@
             <p class="gestor-hint">Os demais campos do protótipo original (nome fantasia, inscrição estadual, unidade principal, plano, endereço fiscal etc.) ainda não têm coluna correspondente no banco — foram retirados daqui até existir onde salvar.</p>
           </div>
 
-          <div class="card form-card">
+          <div class="card form-card" id="cadastro-membro-form-card">
             <div class="form-section-title">Corpo clínico desta empresa</div>
-            <div style="display:flex; gap:10px; align-items:flex-end; margin-bottom: 4px;">
+            <div id="cadastro-membro-form-row" style="display:flex; gap:10px; align-items:flex-end; margin-bottom: 4px;">
               <div class="form-field" style="flex:1">
                 <label>Código do membro (banco Livance)</label>
                 <input type="text" placeholder="Ex: 11315" id="cadastro-codigo-membro-input">
               </div>
               <button class="btn primary" style="padding:9px 18px" onclick="cadastroAdicionarMembro()">Buscar e salvar</button>
             </div>
-            <p class="gestor-hint" style="margin-bottom:14px;">Ao salvar, nome, CPF e especialidade são preenchidos automaticamente a partir do banco de dados da Livance.</p>
+            <p class="gestor-hint" id="cadastro-membro-hint" style="margin-bottom:14px;">Ao salvar, nome, CPF e especialidade são preenchidos automaticamente a partir do banco de dados da Livance.</p>
             <div class="toolbar-row" style="margin-bottom:8px;">
               <button class="btn hidden" id="btn-sincronizar-todos-cadastro" style="margin-left:auto" onclick="sincronizarTodosPendentes(membrosClinicaEditando, 'cadastro')">Sincronizar pendentes</button>
             </div>
             <table>
-              <thead><tr><th>Código</th><th>Nome</th><th>Especialidade</th><th>Fechamento</th><th>Status</th><th>Ações</th></tr></thead>
+              <thead><tr><th>#</th><th>Código</th><th>Nome</th><th>Especialidade</th><th>Fechamento</th><th>Status</th><th id="th-acoes-cadastro">Ações</th></tr></thead>
               <tbody id="cadastro-membros-table"></tbody>
             </table>
           </div>
@@ -633,12 +652,12 @@
 
         <div class="toolbar-row">
           <button class="btn hidden" id="btn-sincronizar-todos-medicos" onclick="sincronizarTodosPendentes(membros, 'profissionais')">Sincronizar pendentes</button>
-          <button class="btn" style="margin-left:auto"><span class="btn-icon">&#8595;</span>Exportar</button>
+          <button class="btn" style="margin-left:auto" onclick="exportarProfissionais()"><span class="btn-icon">&#8595;</span>Exportar</button>
         </div>
 
         <div class="card">
           <table>
-            <thead><tr><th>Código</th><th>Médico</th><th>CPF</th><th>Especialidade</th><th>Unidade habitual</th><th>Fechamento</th><th>Status</th><th class="hidden" id="th-acoes-gestor">Ações</th></tr></thead>
+            <thead><tr><th>#</th><th>Código</th><th>Médico</th><th>CPF</th><th>Especialidade</th><th>Unidade habitual</th><th>Fechamento</th><th>Status</th><th class="hidden" id="th-acoes-gestor">Ações</th></tr></thead>
             <tbody id="medicos-table"></tbody>
           </table>
         </div>
@@ -662,7 +681,7 @@
         <div class="doc-totals-row" id="doc-totals-row"></div>
 
         <div class="toolbar-row">
-          <button class="btn" style="margin-left:auto"><span class="btn-icon">&#8595;</span>Exportar</button>
+          <button class="btn" style="margin-left:auto" onclick="exportarMovimentacoes()"><span class="btn-icon">&#8595;</span>Exportar</button>
         </div>
 
         <div class="mov-layout">
@@ -678,6 +697,36 @@
             </div>
           </div>
           <div class="credit-card" id="credit-card"></div>
+        </div>
+      </div>
+
+      <!-- ============ RELATÓRIOS ============ -->
+      <div id="view-relatorios" class="view hidden">
+        <div class="page-title">Relatórios</div>
+        <div class="breadcrumb"><a href="#">Home</a> / <span class="current">Relatórios</span></div>
+
+        <div class="filter-row">
+          <div class="filter-field">
+            <div class="field-label">De</div>
+            <input type="date" id="relatorio-data-inicio">
+          </div>
+          <div class="filter-field">
+            <div class="field-label">Até</div>
+            <input type="date" id="relatorio-data-fim">
+          </div>
+          <div class="filter-field" style="align-self:flex-end;">
+            <button class="btn primary" onclick="gerarRelatorio()">Gerar relatório</button>
+          </div>
+          <div class="filter-field" style="align-self:flex-end; margin-left:auto;">
+            <button class="btn" onclick="exportarRelatorio()">↓ Exportar</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <table>
+            <thead><tr><th>#</th><th>Médico</th><th>Especialidade</th><th>Fatura de Locação</th><th>Nota Fiscal</th><th>Total</th></tr></thead>
+            <tbody id="relatorio-table"></tbody>
+          </table>
         </div>
       </div>
 
@@ -702,9 +751,38 @@
         <div class="page-title">Financeiro</div>
         <div class="breadcrumb"><a href="#">Home</a> / <span class="current">Financeiro</span></div>
 
+        <div class="filter-row">
+          <div class="filter-field">
+            <div class="field-label">Competência</div>
+            <select id="fin-filtro-competencia" onchange="renderFinanceiro()">
+              <option value="todos">Todas</option>
+            </select>
+          </div>
+          <div class="filter-field">
+            <div class="field-label">Vencimento de</div>
+            <input type="date" id="fin-filtro-venc-de" onchange="renderFinanceiro()">
+          </div>
+          <div class="filter-field">
+            <div class="field-label">Vencimento até</div>
+            <input type="date" id="fin-filtro-venc-ate" onchange="renderFinanceiro()">
+          </div>
+          <div class="filter-field">
+            <div class="field-label">Status</div>
+            <select id="fin-filtro-status" onchange="renderFinanceiro()">
+              <option value="todos">Todos</option>
+              <option value="pago">Pago</option>
+              <option value="aberto">Em aberto</option>
+              <option value="vencido">Vencido</option>
+            </select>
+          </div>
+          <div class="filter-field" style="align-self:flex-end; margin-left:auto;">
+            <button class="btn" onclick="exportarFaturasSelecionadas()">↓ Exportar selecionados</button>
+          </div>
+        </div>
+
         <div class="card">
           <table>
-            <thead><tr><th>Competência</th><th>Vencimento</th><th>Valor</th><th>Status</th><th>Nota fiscal</th><th>Boleto</th></tr></thead>
+            <thead><tr><th style="width:32px;"><input type="checkbox" id="fin-select-all" onchange="toggleSelecionarTodasFaturas(this)"></th><th>Competência</th><th>Vencimento</th><th>Valor</th><th>Status</th><th>Nota fiscal</th><th>Boleto</th></tr></thead>
             <tbody id="financeiro-table"></tbody>
           </table>
         </div>
@@ -769,6 +847,72 @@
   </div>
 </div>
 
+<!-- ===================== MODAL REATIVAR MEMBRO ===================== -->
+<div id="modal-reativar" class="hidden" style="position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:200; display:flex; align-items:center; justify-content:center;">
+  <div class="card form-card" style="width:400px; max-width:90vw;">
+    <div class="form-section-title">Reativar profissional</div>
+    <p class="gestor-hint" style="margin-bottom:14px;">A partir dessa data, ele volta a aparecer nas movimentações da clínica. O período entre a inativação e essa data continua escondido (não existiu pra fins de fatura).</p>
+    <div class="form-field" style="margin-bottom:16px;">
+      <label style="display:block;font-size:11.5px;color:var(--text-soft);margin-bottom:5px;">Data de reativação (primeiro dia considerado)</label>
+      <input type="date" id="reativar-data" style="width:100%;">
+    </div>
+    <div id="reativar-erro" class="hidden" style="color:var(--red); font-size:12px; margin-bottom:10px;"></div>
+    <div style="display:flex; gap:10px; justify-content:flex-end;">
+      <button class="btn" onclick="fecharModalReativar()">Cancelar</button>
+      <button class="btn primary" id="reativar-btn" onclick="confirmarReativar()">Reativar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== MODAL GERENCIAR ACESSOS ===================== -->
+<div id="modal-acessos" class="hidden" style="position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:200; display:flex; align-items:center; justify-content:center;">
+  <div class="card form-card" style="width:460px; max-width:90vw;">
+    <div class="form-section-title">Gerenciar acessos ao portal</div>
+
+    <div class="profile-tabs" style="margin-bottom:16px;">
+      <button class="profile-tab active" id="acessos-tab-criar" onclick="setAcessosTab('criar')">Criar acesso</button>
+      <button class="profile-tab" id="acessos-tab-resetar" onclick="setAcessosTab('resetar')">Resetar senha</button>
+    </div>
+
+    <div id="acessos-painel-criar">
+      <div class="form-field" style="margin-bottom:12px;">
+        <label style="display:block;font-size:11.5px;color:var(--text-soft);margin-bottom:5px;">Tipo de acesso</label>
+        <select id="acessos-novo-tipo" style="width:100%;" onchange="aoMudarTipoAcessoNovo()">
+          <option value="clinica">Clínica</option>
+          <option value="gestor">Gestor Livance</option>
+        </select>
+      </div>
+      <div class="form-field" id="acessos-novo-clinica-campo" style="margin-bottom:12px;">
+        <label style="display:block;font-size:11.5px;color:var(--text-soft);margin-bottom:5px;">Clínica</label>
+        <select id="acessos-novo-clinica" style="width:100%;"></select>
+      </div>
+      <div class="form-field" style="margin-bottom:16px;">
+        <label style="display:block;font-size:11.5px;color:var(--text-soft);margin-bottom:5px;">Login (usuário ou CNPJ)</label>
+        <input type="text" id="acessos-novo-login" style="width:100%;">
+      </div>
+      <p class="gestor-hint" style="margin-bottom:14px;">A senha inicial é <b>12345678</b> — a pessoa é obrigada a trocar assim que entrar pela primeira vez.</p>
+      <div id="acessos-criar-erro" class="hidden" style="color:var(--red); font-size:12px; margin-bottom:10px;"></div>
+      <div style="display:flex; gap:10px; justify-content:flex-end;">
+        <button class="btn" onclick="fecharModalAcessos()">Cancelar</button>
+        <button class="btn primary" id="acessos-criar-btn" onclick="confirmarCriarAcesso()">Criar acesso</button>
+      </div>
+    </div>
+
+    <div id="acessos-painel-resetar" class="hidden">
+      <div class="form-field" style="margin-bottom:16px;">
+        <label style="display:block;font-size:11.5px;color:var(--text-soft);margin-bottom:5px;">Login (usuário ou CNPJ) de quem esqueceu a senha</label>
+        <input type="text" id="acessos-reset-login" style="width:100%;">
+      </div>
+      <p class="gestor-hint" style="margin-bottom:14px;">Isso volta a senha pra <b>12345678</b> e obriga a pessoa a trocar no próximo login.</p>
+      <div id="acessos-reset-erro" class="hidden" style="color:var(--red); font-size:12px; margin-bottom:10px;"></div>
+      <div style="display:flex; gap:10px; justify-content:flex-end;">
+        <button class="btn" onclick="fecharModalAcessos()">Cancelar</button>
+        <button class="btn primary" id="acessos-reset-btn" onclick="confirmarResetarSenha()">Resetar senha</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
 /* =====================================================================
    CONFIGURAÇÃO — conexões reais
@@ -801,9 +945,9 @@ let perfilAtivo = 'clinica';
 // Faturas e avisos ainda não têm tabela/rotina no Supabase — mantidos como
 // protótipo visual até existir uma fonte de dados real (ver aviso no chat).
 const faturas = [
-  { competencia: 'Julho/2026', vencimento: '10/06/2026', valor: 'R$ 3.420,00', status: 'vencido' },
-  { competencia: 'Junho/2026', vencimento: '10/07/2026', valor: 'R$ 24.180,00', status: 'aberto' },
-  { competencia: 'Maio/2026', vencimento: '10/06/2026', valor: 'R$ 21.640,00', status: 'pago' },
+  { id: 'f1', competencia: 'Julho/2026', vencimento: '10/06/2026', valor: 'R$ 3.420,00', status: 'vencido' },
+  { id: 'f2', competencia: 'Junho/2026', vencimento: '10/07/2026', valor: 'R$ 24.180,00', status: 'aberto' },
+  { id: 'f3', competencia: 'Maio/2026', vencimento: '10/06/2026', valor: 'R$ 21.640,00', status: 'pago' },
 ];
 
 /* =====================================================================
@@ -939,6 +1083,11 @@ async function tentarLogin() {
       clinicaNome: r.clinica_nome || null,
       clinicaCnpj: r.clinica_cnpj || null
     };
+
+    if (r.precisa_trocar_senha) {
+      mostrarTrocaSenhaObrigatoria(senha);
+      return;
+    }
     localStorage.setItem('livance_token', r.token);
     await entrarNoPortal();
   } catch (err) {
@@ -984,6 +1133,8 @@ async function entrarNoPortal() {
   document.getElementById('th-acoes-gestor').classList.toggle('hidden', !isGestor);
   document.getElementById('inativar-hint').classList.toggle('hidden', !isGestor);
   document.getElementById('gestor-clinica-selector').classList.toggle('hidden', !isGestor);
+  document.getElementById('nav-profissionais').classList.toggle('hidden', !isGestor);
+  document.getElementById('icon-gerenciar-acessos').classList.toggle('hidden', !isGestor);
 
   if (isGestor) {
     await carregarClinicasGestor();
@@ -993,6 +1144,48 @@ async function entrarNoPortal() {
   }
 
   await carregarTudoDaClinica();
+}
+
+// Guarda a senha atual (a padrão que a pessoa acabou de digitar pra entrar)
+// só em memória, pra não precisar pedir de novo na hora de trocar.
+let senhaAtualParaTroca = null;
+
+function mostrarTrocaSenhaObrigatoria(senhaDigitada) {
+  senhaAtualParaTroca = senhaDigitada;
+  document.getElementById('login-screen').classList.add('hidden');
+  document.getElementById('troca-senha-screen').classList.remove('hidden');
+  document.getElementById('troca-senha-nova').value = '';
+  document.getElementById('troca-senha-confirmar').value = '';
+  document.getElementById('troca-senha-erro').classList.add('hidden');
+}
+
+async function confirmarTrocaSenhaObrigatoria() {
+  const nova = document.getElementById('troca-senha-nova').value;
+  const confirmar = document.getElementById('troca-senha-confirmar').value;
+  const erroEl = document.getElementById('troca-senha-erro');
+  erroEl.classList.add('hidden');
+
+  if (nova.length < 8) { erroEl.textContent = 'A nova senha precisa ter no mínimo 8 caracteres.'; erroEl.classList.remove('hidden'); return; }
+  if (nova !== confirmar) { erroEl.textContent = 'As senhas não coincidem.'; erroEl.classList.remove('hidden'); return; }
+
+  const btn = document.getElementById('troca-senha-btn');
+  btn.disabled = true;
+  try {
+    const r = await rpc('fn_trocar_senha', {
+      p_token: sessao.token, p_senha_atual: senhaAtualParaTroca, p_senha_nova: nova
+    });
+    if (!r.ok) { erroEl.textContent = r.erro || 'Não foi possível trocar a senha.'; erroEl.classList.remove('hidden'); return; }
+
+    senhaAtualParaTroca = null;
+    localStorage.setItem('livance_token', sessao.token);
+    document.getElementById('troca-senha-screen').classList.add('hidden');
+    await entrarNoPortal();
+  } catch (e) {
+    erroEl.textContent = 'Erro de conexão: ' + e.message;
+    erroEl.classList.remove('hidden');
+  } finally {
+    btn.disabled = false;
+  }
 }
 
 async function logout() {
@@ -1048,6 +1241,7 @@ async function carregarTudoDaClinica() {
     carregarSolicitacoes()
   ]);
   await carregarMovimentacaoBruta();
+  renderOverview(); // agora com movimentacoesBrutas carregado, recalcula com valores reais
 
   renderOverdueBanner();
   renderFinanceiro();
@@ -1092,6 +1286,9 @@ function statusPillComData(m) {
   if (!m.ativo_local && m.data_corte) {
     return pill + `<div style="font-size:10.5px;color:var(--text-faint);margin-top:3px;">até ${formatarDataBR(m.data_corte)}</div>`;
   }
+  if (m.ativo_local && m.data_corte && m.data_reativacao) {
+    return pill + `<div style="font-size:10.5px;color:var(--text-faint);margin-top:3px;">pausa ${formatarDataBR(m.data_corte)}–${formatarDataBR(m.data_reativacao)}</div>`;
+  }
   return pill;
 }
 
@@ -1111,8 +1308,9 @@ function renderMedicos() {
   const isGestor = sessao.tipo === 'gestor';
   const pendentes = membros.filter(m => !m.nome_cache || !m.dia_fechamento_cache).length;
   document.getElementById('btn-sincronizar-todos-medicos').classList.toggle('hidden', !isGestor || pendentes === 0);
-  document.getElementById('medicos-table').innerHTML = membros.map(m => `
+  document.getElementById('medicos-table').innerHTML = membros.map((m, i) => `
     <tr>
+      <td>${i + 1}</td>
       <td>${m.cod_usuario}</td>
       <td><div class="doc-cell">${nomeExibicao(m)}<span class="crm">${m.crm_cache || '--'}</span></div></td>
       <td>${m.cpf_cache || '--'}</td>
@@ -1124,9 +1322,11 @@ function renderMedicos() {
         ${(!m.nome_cache || !m.dia_fechamento_cache) ? `<span class="action-link" onclick="sincronizarMembro('${m.id}', ${m.cod_usuario}, 'profissionais')">Sincronizar</span>` : ''}
         ${m.ativo_local
           ? `<span class="action-link danger" onclick="abrirModalInativar('${m.id}', 'profissionais')">Inativar</span>`
-          : `<span class="action-link" onclick="reativarMembro('${m.id}', 'profissionais')">Reativar</span>`}</td>` : ''}
+          : `<span class="action-link" onclick="abrirModalReativar('${m.id}', 'profissionais')">Reativar</span>`}
+        <span class="action-link danger" onclick="excluirMembro('${m.id}', 'profissionais')">Excluir</span>
+      </td>` : ''}
     </tr>
-  `).join('') || `<tr><td colspan="8"><div class="empty-state">Nenhum profissional cadastrado nesta clínica.</div></td></tr>`;
+  `).join('') || `<tr><td colspan="9"><div class="empty-state">Nenhum profissional cadastrado nesta clínica.</div></td></tr>`;
 }
 
 // Estado do modal de inativação — guarda qual membro e em qual tela
@@ -1166,10 +1366,51 @@ async function confirmarInativar() {
   }
 }
 
-async function reativarMembro(id, contexto) {
+// Estado do modal de reativação — mesmo padrão do de inativação.
+let membroParaReativar = null;
+let contextoReativar = null;
+
+function abrirModalReativar(id, contexto) {
+  membroParaReativar = id;
+  contextoReativar = contexto;
+  document.getElementById('reativar-data').value = new Date().toISOString().slice(0, 10);
+  document.getElementById('reativar-erro').classList.add('hidden');
+  document.getElementById('modal-reativar').classList.remove('hidden');
+}
+function fecharModalReativar() {
+  document.getElementById('modal-reativar').classList.add('hidden');
+}
+async function confirmarReativar() {
+  const data = document.getElementById('reativar-data').value;
+  const erroEl = document.getElementById('reativar-erro');
+  if (!data) { erroEl.textContent = 'Informe a data de reativação.'; erroEl.classList.remove('hidden'); return; }
+
+  const btn = document.getElementById('reativar-btn');
+  btn.disabled = true;
   try {
-    const r = await rpc('fn_alterar_status_membro', { p_token: sessao.token, p_membro_id: id, p_ativo: true });
-    if (!r.ok) { alert(r.erro || 'Não foi possível reativar.'); return; }
+    const r = await rpc('fn_alterar_status_membro', {
+      p_token: sessao.token, p_membro_id: membroParaReativar, p_ativo: true, p_data_reativacao: data
+    });
+    if (!r.ok) { erroEl.textContent = r.erro || 'Não foi possível reativar.'; erroEl.classList.remove('hidden'); return; }
+    fecharModalReativar();
+    contextoInativar = contextoReativar;
+    await recarregarAposMudancaDeStatus();
+  } catch (e) {
+    erroEl.textContent = 'Erro de conexão: ' + e.message;
+    erroEl.classList.remove('hidden');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function excluirMembro(id, contexto) {
+  const lista = contexto === 'cadastro' ? membrosClinicaEditando : membros;
+  const m = lista.find(x => x.id === id);
+  const nome = m ? nomeExibicao(m) : 'este profissional';
+  if (!confirm(`Excluir "${nome}" definitivamente do corpo clínico? Isso NÃO mantém histórico — diferente de inativar, não tem como desfazer.`)) return;
+  try {
+    const r = await rpc('fn_excluir_membro', { p_token: sessao.token, p_membro_id: id });
+    if (!r.ok) { alert(r.erro || 'Não foi possível excluir.'); return; }
     contextoInativar = contexto;
     await recarregarAposMudancaDeStatus();
   } catch (e) {
@@ -1183,6 +1424,85 @@ async function recarregarAposMudancaDeStatus() {
     if (clinicaEditandoId === sessao.clinicaId) await carregarMembros();
   } else {
     await carregarMembros();
+  }
+}
+
+/* =====================================================================
+   GERENCIAR ACESSOS (criar login / resetar senha) — só gestor
+   ===================================================================== */
+
+function abrirModalAcessos() {
+  setAcessosTab('criar');
+  document.getElementById('acessos-novo-login').value = '';
+  document.getElementById('acessos-reset-login').value = '';
+  document.getElementById('acessos-criar-erro').classList.add('hidden');
+  document.getElementById('acessos-reset-erro').classList.add('hidden');
+
+  const selClinica = document.getElementById('acessos-novo-clinica');
+  selClinica.innerHTML = clinicasGestor.map(c => `<option value="${c.id}">${c.razao_social}</option>`).join('');
+  aoMudarTipoAcessoNovo();
+
+  document.getElementById('modal-acessos').classList.remove('hidden');
+}
+function fecharModalAcessos() {
+  document.getElementById('modal-acessos').classList.add('hidden');
+}
+function setAcessosTab(aba) {
+  document.getElementById('acessos-tab-criar').classList.toggle('active', aba === 'criar');
+  document.getElementById('acessos-tab-resetar').classList.toggle('active', aba === 'resetar');
+  document.getElementById('acessos-painel-criar').classList.toggle('hidden', aba !== 'criar');
+  document.getElementById('acessos-painel-resetar').classList.toggle('hidden', aba !== 'resetar');
+}
+function aoMudarTipoAcessoNovo() {
+  const tipo = document.getElementById('acessos-novo-tipo').value;
+  document.getElementById('acessos-novo-clinica-campo').classList.toggle('hidden', tipo !== 'clinica');
+}
+
+async function confirmarCriarAcesso() {
+  const tipo = document.getElementById('acessos-novo-tipo').value;
+  const clinicaId = document.getElementById('acessos-novo-clinica').value;
+  const login = document.getElementById('acessos-novo-login').value.trim();
+  const erroEl = document.getElementById('acessos-criar-erro');
+  erroEl.classList.add('hidden');
+
+  if (!login) { erroEl.textContent = 'Informe o login.'; erroEl.classList.remove('hidden'); return; }
+  if (tipo === 'clinica' && !clinicaId) { erroEl.textContent = 'Escolha a clínica.'; erroEl.classList.remove('hidden'); return; }
+
+  const btn = document.getElementById('acessos-criar-btn');
+  btn.disabled = true;
+  try {
+    const r = await rpc('fn_criar_usuario', {
+      p_token: sessao.token, p_tipo: tipo, p_clinica_id: tipo === 'clinica' ? clinicaId : null, p_login: login
+    });
+    if (!r.ok) { erroEl.textContent = r.erro || 'Não foi possível criar o acesso.'; erroEl.classList.remove('hidden'); return; }
+    alert('Acesso criado! Login: ' + login + ' · Senha inicial: 12345678 (a pessoa vai precisar trocar no primeiro login).');
+    fecharModalAcessos();
+  } catch (e) {
+    erroEl.textContent = 'Erro de conexão: ' + e.message;
+    erroEl.classList.remove('hidden');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function confirmarResetarSenha() {
+  const login = document.getElementById('acessos-reset-login').value.trim();
+  const erroEl = document.getElementById('acessos-reset-erro');
+  erroEl.classList.add('hidden');
+  if (!login) { erroEl.textContent = 'Informe o login.'; erroEl.classList.remove('hidden'); return; }
+
+  const btn = document.getElementById('acessos-reset-btn');
+  btn.disabled = true;
+  try {
+    const r = await rpc('fn_resetar_senha_por_login', { p_token: sessao.token, p_login: login });
+    if (!r.ok) { erroEl.textContent = r.erro || 'Não foi possível resetar a senha.'; erroEl.classList.remove('hidden'); return; }
+    alert('Senha de "' + login + '" resetada pra 12345678 — a pessoa vai precisar trocar no próximo login.');
+    fecharModalAcessos();
+  } catch (e) {
+    erroEl.textContent = 'Erro de conexão: ' + e.message;
+    erroEl.classList.remove('hidden');
+  } finally {
+    btn.disabled = false;
   }
 }
 
@@ -1354,6 +1674,12 @@ async function abrirEdicaoClinica(clinicaId) {
   cnpjInput.readOnly = sessao.tipo !== 'gestor';
   document.getElementById('cad-cnpj-hint').classList.toggle('hidden', sessao.tipo === 'gestor');
 
+  const isGestor = sessao.tipo === 'gestor';
+  document.getElementById('cad-razao-social').readOnly = !isGestor;
+  document.getElementById('cad-tributacao').readOnly = !isGestor;
+  document.getElementById('cad-email').readOnly = !isGestor;
+  document.getElementById('cad-salvar-btn').classList.toggle('hidden', !isGestor);
+
   await carregarMembrosClinicaEditando(clinicaId);
 }
 
@@ -1401,36 +1727,43 @@ async function salvarClinica() {
 
 async function carregarMembrosClinicaEditando(clinicaId) {
   const tbody = document.getElementById('cadastro-membros-table');
-  tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state">Carregando...</div></td></tr>`;
+  tbody.innerHTML = `<tr><td colspan="7"><div class="empty-state">Carregando...</div></td></tr>`;
   try {
     const r = await rpc('fn_listar_membros', { p_token: sessao.token, p_clinica_id: clinicaId });
-    if (!r.ok) { tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state">${r.erro || 'Erro ao carregar membros.'}</div></td></tr>`; return; }
+    if (!r.ok) { tbody.innerHTML = `<tr><td colspan="7"><div class="empty-state">${r.erro || 'Erro ao carregar membros.'}</div></td></tr>`; return; }
     membrosClinicaEditando = r.membros || [];
   } catch (e) {
-    tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state">Erro de conexão: ${e.message}</div></td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7"><div class="empty-state">Erro de conexão: ${e.message}</div></td></tr>`;
     return;
   }
   renderMembrosClinicaEditando();
 }
 
 function renderMembrosClinicaEditando() {
+  const isGestor = sessao.tipo === 'gestor';
+  document.getElementById('cadastro-membro-form-row').classList.toggle('hidden', !isGestor);
+  document.getElementById('cadastro-membro-hint').classList.toggle('hidden', !isGestor);
+  document.getElementById('th-acoes-cadastro').classList.toggle('hidden', !isGestor);
+
   const pendentes = membrosClinicaEditando.filter(m => !m.nome_cache || !m.dia_fechamento_cache).length;
-  document.getElementById('btn-sincronizar-todos-cadastro').classList.toggle('hidden', pendentes === 0);
-  document.getElementById('cadastro-membros-table').innerHTML = membrosClinicaEditando.map(m => `
+  document.getElementById('btn-sincronizar-todos-cadastro').classList.toggle('hidden', !isGestor || pendentes === 0);
+  document.getElementById('cadastro-membros-table').innerHTML = membrosClinicaEditando.map((m, i) => `
     <tr>
+      <td>${i + 1}</td>
       <td>${m.cod_usuario}</td>
       <td>${nomeExibicao(m)}</td>
       <td>${m.especialidade_cache || '--'}</td>
       <td>${celulaFechamento(m)}</td>
       <td>${statusPillComData(m)}</td>
-      <td>
+      ${isGestor ? `<td>
         ${(!m.nome_cache || !m.dia_fechamento_cache) ? `<span class="action-link" onclick="sincronizarMembro('${m.id}', ${m.cod_usuario}, 'cadastro')">Sincronizar</span>` : ''}
         ${m.ativo_local
           ? `<span class="action-link danger" onclick="abrirModalInativar('${m.id}', 'cadastro')">Inativar</span>`
-          : `<span class="action-link" onclick="reativarMembro('${m.id}', 'cadastro')">Reativar</span>`}
-      </td>
+          : `<span class="action-link" onclick="abrirModalReativar('${m.id}', 'cadastro')">Reativar</span>`}
+        <span class="action-link danger" onclick="excluirMembro('${m.id}', 'cadastro')">Excluir</span>
+      </td>` : ''}
     </tr>
-  `).join('') || `<tr><td colspan="6"><div class="empty-state">Nenhum membro incluído ainda.</div></td></tr>`;
+  `).join('') || `<tr><td colspan="7"><div class="empty-state">Nenhum membro incluído ainda.</div></td></tr>`;
 }
 
 async function cadastroAdicionarMembro() {
@@ -1556,9 +1889,9 @@ async function carregarMovimentacaoBruta() {
   const tbody = document.getElementById('movimentacao-table');
   tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state">Carregando movimentações...</div></td></tr>`;
 
-  const seteMesesAtras = new Date();
-  seteMesesAtras.setMonth(seteMesesAtras.getMonth() - 7);
-  const dataInicio = formatarISODate(seteMesesAtras);
+  // O sistema passa a considerar dados só a partir de janeiro/2026 pra frente
+  // (decisão explícita: início da operação real do portal).
+  const dataInicio = '2026-01-01';
 
   try {
     const r = await chamarAppsScript({
@@ -1589,8 +1922,24 @@ function recalcularPeriodosEexibir() {
 
   linhas = linhas.filter(r => {
     const membro = membros.find(m => String(m.cod_usuario) === String(r.codusuario));
-    if (!membro || membro.ativo_local || !membro.data_corte) return true;
-    return String(r.datamovimentacao).slice(0, 10) <= String(membro.data_corte).slice(0, 10);
+    if (!membro) return true;
+    const dataMov = String(r.datamovimentacao).slice(0, 10);
+
+    // Inativo agora, com data de corte: esconde tudo depois do corte
+    // (ainda não tem fim definido pro buraco).
+    if (!membro.ativo_local && membro.data_corte) {
+      return dataMov <= String(membro.data_corte).slice(0, 10);
+    }
+
+    // Ativo de novo, mas já teve uma pausa no passado: esconde só o
+    // intervalo entre a inativação e a reativação (o "buraco").
+    if (membro.ativo_local && membro.data_corte && membro.data_reativacao) {
+      const corte = String(membro.data_corte).slice(0, 10);
+      const reativacao = String(membro.data_reativacao).slice(0, 10);
+      return !(dataMov > corte && dataMov < reativacao);
+    }
+
+    return true;
   });
 
   const grupos = {};
@@ -1696,11 +2045,9 @@ function renderMovimentacao(linhasBrutas) {
     <div class="credit-label">Total do período</div>
     <div class="credit-value">${formatarMoeda(total)}</div>
     <div class="credit-due">${rows.length} lançamento${rows.length !== 1 ? 's' : ''}</div>
-    ${temValorOficial ? `
-      <div style="margin-top:8px; font-size:11.5px; ${bateComOficial ? 'color:var(--green);' : 'color:var(--red);'}">
-        ${bateComOficial
-          ? '✓ Bate com o valor oficial da(s) fatura(s) na Livance'
-          : `⚠ Diverge do valor oficial da Livance: ${formatarMoeda(totalOficial)} (diferença de ${formatarMoeda(diferenca)})`}
+    ${(temValorOficial && !bateComOficial) ? `
+      <div style="margin-top:8px; font-size:11.5px; color:var(--red);">
+        ⚠ Diverge do valor oficial da Livance: ${formatarMoeda(totalOficial)} (diferença de ${formatarMoeda(diferenca)})
       </div>` : ''}
   `;
 
@@ -1727,15 +2074,34 @@ function renderMovimentacao(linhasBrutas) {
 
 function renderOverview() {
   const ativos = membros.filter(m => m.ativo_local);
-  document.getElementById('overview-table').innerHTML = ativos.slice(0, 5).map(m => `
-    <tr>
-      <td><div class="doc-cell">${nomeExibicao(m)}<span class="crm">${m.crm_cache || '--'}</span></div></td>
-      <td>${m.especialidade_cache || '--'}</td>
-      <td>--</td>
-      <td class="val">--</td>
-      <td>${statusPill(m.ativo_local)}</td>
-    </tr>
-  `).join('') || `<tr><td colspan="5"><div class="empty-state">Nenhum profissional ativo.</div></td></tr>`;
+
+  // Soma os valores do período EM ABERTO (o mesmo que aparece na aba "ABERTA"
+  // de Movimentações) por médico, separando fatura de locação e nota fiscal.
+  // Só considera linhas sem `datavencimentofatura` (ainda não fechadas).
+  const totaisPorMedico = {};
+  movimentacoesBrutas.forEach(r => {
+    if (r.datavencimentofatura) return;
+    const cod = String(r.codusuario);
+    if (!totaisPorMedico[cod]) totaisPorMedico[cod] = { fatura: 0, nf: 0 };
+    const tipo = mapearDocumento(r.codmodalidadefiscal);
+    const valor = parseFloat(r.valormovimentacao || 0);
+    if (tipo === 'fatura_locacao') totaisPorMedico[cod].fatura += valor;
+    else if (tipo === 'nota_fiscal') totaisPorMedico[cod].nf += valor;
+  });
+
+  document.getElementById('overview-table').innerHTML = ativos.slice(0, 5).map(m => {
+    const t = totaisPorMedico[String(m.cod_usuario)] || { fatura: 0, nf: 0 };
+    return `
+      <tr>
+        <td><div class="doc-cell">${nomeExibicao(m)}<span class="crm">${m.crm_cache || '--'}</span></div></td>
+        <td>${m.especialidade_cache || '--'}</td>
+        <td class="val">${formatarMoeda(t.fatura)}</td>
+        <td class="val">${formatarMoeda(t.nf)}</td>
+        <td class="val">${formatarMoeda(t.fatura + t.nf)}</td>
+        <td>${statusPill(m.ativo_local)}</td>
+      </tr>
+    `;
+  }).join('') || `<tr><td colspan="6"><div class="empty-state">Nenhum profissional ativo.</div></td></tr>`;
 
   document.getElementById('metric-medicos-ativos').textContent = ativos.length;
   document.getElementById('metric-medicos-sub').textContent = `de ${membros.length} cadastrados`;
@@ -1754,9 +2120,44 @@ function statusFaturaPill(status) {
   if (status === 'vencido') return '<span class="pill warn">Vencido</span>';
   return '<span class="pill neutral">Em aberto</span>';
 }
+
+function popularFiltroCompetencia() {
+  const sel = document.getElementById('fin-filtro-competencia');
+  const atual = sel.value;
+  const competencias = [...new Set(faturas.map(f => f.competencia))];
+  sel.innerHTML = '<option value="todos">Todas</option>' + competencias.map(c => `<option value="${c}">${c}</option>`).join('');
+  if (competencias.includes(atual)) sel.value = atual;
+}
+
+// Converte "10/06/2026" -> "2026-06-10" pra dar pra comparar com os campos
+// type="date" (que trabalham em AAAA-MM-DD).
+function paraISOBR(dataBR) {
+  const [d, m, a] = dataBR.split('/');
+  return `${a}-${m}-${d}`;
+}
+
+function faturasFiltradas() {
+  const competencia = document.getElementById('fin-filtro-competencia').value;
+  const vencDe = document.getElementById('fin-filtro-venc-de').value;
+  const vencAte = document.getElementById('fin-filtro-venc-ate').value;
+  const status = document.getElementById('fin-filtro-status').value;
+
+  return faturas.filter(f => {
+    if (competencia !== 'todos' && f.competencia !== competencia) return false;
+    if (status !== 'todos' && f.status !== status) return false;
+    const vencISO = paraISOBR(f.vencimento);
+    if (vencDe && vencISO < vencDe) return false;
+    if (vencAte && vencISO > vencAte) return false;
+    return true;
+  });
+}
+
 function renderFinanceiro() {
-  document.getElementById('financeiro-table').innerHTML = faturas.map(f => `
+  popularFiltroCompetencia();
+  const lista = faturasFiltradas();
+  document.getElementById('financeiro-table').innerHTML = lista.map(f => `
     <tr>
+      <td><input type="checkbox" class="fin-select" data-id="${f.id}"></td>
       <td>${f.competencia}</td>
       <td>${f.vencimento}</td>
       <td class="val">${f.valor}</td>
@@ -1764,8 +2165,22 @@ function renderFinanceiro() {
       <td><span class="download-link">Baixar NF ↓</span></td>
       <td><span class="download-link">Baixar boleto ↓</span></td>
     </tr>
-  `).join('');
+  `).join('') || `<tr><td colspan="7"><div class="empty-state">Nenhuma fatura para os filtros selecionados.</div></td></tr>`;
+  document.getElementById('fin-select-all').checked = false;
 }
+
+function toggleSelecionarTodasFaturas(checkbox) {
+  document.querySelectorAll('.fin-select').forEach(c => { c.checked = checkbox.checked; });
+}
+
+function exportarFaturasSelecionadas() {
+  const ids = [...document.querySelectorAll('.fin-select:checked')].map(c => c.dataset.id);
+  if (ids.length === 0) { alert('Selecione ao menos uma fatura pra exportar.'); return; }
+  const selecionadas = faturas.filter(f => ids.includes(f.id));
+  const linhas = selecionadas.map(f => [f.competencia, f.vencimento, f.valor, f.status]);
+  baixarCSV('faturas.csv', ['Competência', 'Vencimento', 'Valor', 'Status'], linhas);
+}
+
 function renderOverdueBanner() {
   const banner = document.getElementById('overdue-banner');
   const vencidas = faturas.filter(f => f.status === 'vencido');
@@ -1777,6 +2192,64 @@ function renderOverdueBanner() {
     <span class="text">Você tem <b>${vencidas.length} fatura${vencidas.length > 1 ? 's' : ''} vencida${vencidas.length > 1 ? 's' : ''}</b>. Evite o bloqueio do seu corpo clínico.</span>
     <span class="cta">Ir para Financeiro ›</span>
   `;
+}
+
+/* =====================================================================
+   RELATÓRIOS
+   ===================================================================== */
+
+let ultimoRelatorio = [];
+
+function abrirRelatorios() {
+  if (!document.getElementById('relatorio-data-inicio').value) {
+    const hoje = new Date();
+    const inicioMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+    document.getElementById('relatorio-data-inicio').value = formatarISODate(inicioMes);
+    document.getElementById('relatorio-data-fim').value = formatarISODate(hoje);
+  }
+  gerarRelatorio();
+}
+
+function gerarRelatorio() {
+  const dIni = document.getElementById('relatorio-data-inicio').value;
+  const dFim = document.getElementById('relatorio-data-fim').value;
+  if (!dIni || !dFim) { alert('Escolha as duas datas.'); return; }
+
+  const totais = {};
+  movimentacoesBrutas.forEach(r => {
+    const data = String(r.datamovimentacao).slice(0, 10);
+    if (data < dIni || data > dFim) return;
+    const cod = String(r.codusuario);
+    if (!totais[cod]) totais[cod] = { fatura: 0, nf: 0 };
+    const tipo = mapearDocumento(r.codmodalidadefiscal);
+    const valor = parseFloat(r.valormovimentacao || 0);
+    if (tipo === 'fatura_locacao') totais[cod].fatura += valor;
+    else if (tipo === 'nota_fiscal') totais[cod].nf += valor;
+  });
+
+  ultimoRelatorio = membros
+    .map(m => {
+      const t = totais[String(m.cod_usuario)] || { fatura: 0, nf: 0 };
+      return { medico: nomeExibicao(m), especialidade: m.especialidade_cache || '--', fatura: t.fatura, nf: t.nf, total: t.fatura + t.nf };
+    })
+    .filter(r => r.fatura !== 0 || r.nf !== 0);
+
+  document.getElementById('relatorio-table').innerHTML = ultimoRelatorio.map((r, i) => `
+    <tr>
+      <td>${i + 1}</td>
+      <td>${r.medico}</td>
+      <td>${r.especialidade}</td>
+      <td class="val">${formatarMoeda(r.fatura)}</td>
+      <td class="val">${formatarMoeda(r.nf)}</td>
+      <td class="val">${formatarMoeda(r.total)}</td>
+    </tr>
+  `).join('') || `<tr><td colspan="6"><div class="empty-state">Nenhuma movimentação no período selecionado.</div></td></tr>`;
+}
+
+function exportarRelatorio() {
+  if (ultimoRelatorio.length === 0) { alert('Gere o relatório antes de exportar.'); return; }
+  const linhas = ultimoRelatorio.map(r => [r.medico, r.especialidade, formatarMoeda(r.fatura), formatarMoeda(r.nf), formatarMoeda(r.total)]);
+  baixarCSV('relatorio.csv', ['Médico', 'Especialidade', 'Fatura de Locação', 'Nota Fiscal', 'Total'], linhas);
 }
 
 /* =====================================================================
@@ -1881,9 +2354,26 @@ async function enviarMensagem(solicitacaoId) {
     if (!r.ok) { alert(r.erro || 'Não foi possível enviar a mensagem.'); return; }
     input.value = '';
     await carregarMensagens(solicitacaoId);
+
+    const t = solicitacoes.find(x => x.id === solicitacaoId);
+    notificarPorEmail('mensagem', t ? t.assunto : 'Solicitação', texto);
   } catch (e) {
     alert('Erro de conexão: ' + e.message);
   }
+}
+
+// Envia um aviso por e-mail pro financeiro quando abre um chamado novo ou
+// manda mensagem num já existente. É "melhor esforço" — se falhar, não
+// trava a tela nem mostra erro pro usuário (é só uma notificação extra).
+function notificarPorEmail(tipo, assunto, texto) {
+  chamarAppsScript({
+    acao: 'notificar_solicitacao',
+    token: sessao.token,
+    tipo,
+    clinicaNome: sessao.clinicaNome || sessao.clinicaId,
+    assunto,
+    texto
+  }).catch(() => { /* silencioso de propósito */ });
 }
 
 async function encerrarSolicitacao(id) {
@@ -1933,6 +2423,7 @@ async function enviarNovaSolicitacao() {
     }
     fecharModalNovaSolicitacao();
     await carregarSolicitacoes();
+    notificarPorEmail('nova', assunto, mensagem);
   } catch (e) {
     erroEl.textContent = 'Erro de conexão: ' + e.message;
     erroEl.classList.remove('hidden');
@@ -1963,6 +2454,7 @@ function setView(view) {
   document.querySelector('.nav-item[data-view="' + view + '"]').classList.add('active');
   if (view === 'movimentacao') recalcularPeriodosEexibir();
   if (view === 'cadastro') abrirTelaCadastro();
+  if (view === 'relatorios') abrirRelatorios();
 }
 
 function abrirSolicitacaoCnpj() {
@@ -1971,6 +2463,59 @@ function abrirSolicitacaoCnpj() {
   document.querySelector('.nav-item[data-view="solicitacoes"]').classList.add('active');
   novaSolicitacao();
   document.getElementById('nova-sol-assunto').value = 'Alteração de CNPJ';
+}
+
+/* =====================================================================
+   EXPORTAÇÃO (CSV — abre direto no Excel)
+   ===================================================================== */
+
+function baixarCSV(nomeArquivo, cabecalhos, linhas) {
+  const escapar = v => {
+    const s = String(v == null ? '' : v);
+    return /[",;\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  };
+  // ponto e vírgula como separador (Excel em pt-BR abre certinho sem
+  // precisar de "Dados > Texto para colunas") + BOM UTF-8 pra acentos
+  const conteudo = [cabecalhos, ...linhas].map(l => l.map(escapar).join(';')).join('\r\n');
+  const blob = new Blob(['\uFEFF' + conteudo], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = nomeArquivo;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function exportarMovimentacoes() {
+  const grupo = meses.find(m => m.key === mesAtivo);
+  if (!grupo || grupo.rows.length === 0) { alert('Não há movimentações pra exportar neste período.'); return; }
+  const linhas = grupo.rows.map(r => {
+    const membro = membros.find(m => String(m.cod_usuario) === String(r.codusuario));
+    return [
+      formatarData(r.datamovimentacao),
+      r.nomeunidade || '--',
+      membro ? nomeExibicao(membro) : ('Código ' + r.codusuario),
+      r.descricao || '--',
+      formatarMoeda(parseFloat(r.valormovimentacao || 0))
+    ];
+  });
+  baixarCSV(`movimentacoes_${grupo.key}.csv`, ['Data', 'Unidade', 'Médico', 'Descrição', 'Valor'], linhas);
+}
+
+function exportarProfissionais() {
+  if (membros.length === 0) { alert('Não há profissionais pra exportar.'); return; }
+  const linhas = membros.map(m => [
+    m.cod_usuario,
+    nomeExibicao(m),
+    m.cpf_cache || '--',
+    m.especialidade_cache || '--',
+    m.unidade_cache || '--',
+    m.dia_fechamento_cache ? ('Dia ' + m.dia_fechamento_cache) : '--',
+    m.ativo_local ? 'Ativo' : 'Inativo'
+  ]);
+  baixarCSV('profissionais.csv', ['Código', 'Médico', 'CPF', 'Especialidade', 'Unidade', 'Fechamento', 'Status'], linhas);
 }
 
 /* =====================================================================
