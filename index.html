@@ -793,7 +793,8 @@ let solicitacoes = [];
 let solicitacaoAtivaId = null;
 let meses = [];
 let mesAtivo = null;
-let movimentacoesCache = {};   // { "clinicaId_mesKey": [linhas...] }
+let movimentacoesCache = {};   // { clinicaId: [linhas brutas...] } — cache por clínica, não mais por período
+let movimentacoesBrutas = [];  // linhas brutas da clínica atual (antes de filtrar/agrupar)
 let ultimoDocTotais = { fatura: 0, nf: 0 };
 let perfilAtivo = 'clinica';
 
@@ -1038,15 +1039,15 @@ async function trocarClinicaGestor() {
 
 async function carregarTudoDaClinica() {
   movimentacoesCache = {};
-  meses = gerarPeriodos(DIA_FECHAMENTO_PADRAO);
-  mesAtivo = meses[meses.length - 1].key;
-  renderMonthTabs();
+  movimentacoesBrutas = [];
+  meses = [];
+  mesAtivo = null;
 
   await Promise.all([
     carregarMembros(),
     carregarSolicitacoes()
   ]);
-  await carregarMovimentacao(mesAtivo);
+  await carregarMovimentacaoBruta();
 
   renderOverdueBanner();
   renderFinanceiro();
@@ -1493,45 +1494,18 @@ async function salvarNovaClinica() {
    MOVIMENTAÇÕES (via Apps Script → BigQuery)
    ===================================================================== */
 
-// Dia de fechamento padrão da empresa — usado na visão "Todos os médicos" e
-// pra quem ainda não tem `dia_fechamento_cache` preenchido.
+// Dia de fechamento padrão da empresa — só usado agora pra estimar o RÓTULO
+// da aba "em aberto" (que ainda não tem fatura de verdade gerada). Todo o
+// resto (períodos já fechados) vem 100% dos dados reais de `fct_cobrancas`
+// via `datavencimentofatura` — não calculamos mais período por conta própria,
+// porque descobrimos que o fechamento real da Livance às vezes tem exceções
+// pontuais que nenhuma fórmula de dia do mês prevê (caso real: Eloise Butião,
+// fechamento dia 22, mas um lançamento de 20/05 foi pra fatura de 22/06 em
+// vez de 22/05, provavelmente por causa de algum reprocessamento manual).
 const DIA_FECHAMENTO_PADRAO = 25;
 
 function formatarISODate(d) {
   return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-}
-
-// Gera os últimos 5 períodos de fechamento (cada um terminando no "dia" do
-// mês), no mesmo estilo do sistema real da Livance (ex: 22 FEV, 22 MAR...).
-// Isso substitui o antigo esquema de "mês calendário fixo (dia 1 a 30/31)".
-function gerarPeriodos(diaFechamento) {
-  const dia = diaFechamento || DIA_FECHAMENTO_PADRAO;
-  const hoje = new Date();
-  const fechamentoDesteMes = new Date(hoje.getFullYear(), hoje.getMonth(), dia);
-  // Se o fechamento deste mês já passou, o período em aberto é o do mês seguinte.
-  const baseAberta = (hoje > fechamentoDesteMes)
-    ? new Date(hoje.getFullYear(), hoje.getMonth() + 1, dia)
-    : fechamentoDesteMes;
-
-  const arr = [];
-  for (let i = 4; i >= 0; i--) {
-    // "rotulo" é a data que aparece na aba (ex: 22 MAI) — é a data de
-    // fechamento oficial, mas o período de movimentações de verdade tem uma
-    // defasagem de 2 dias: termina 2 dias antes do fechamento e começa no dia
-    // seguinte ao fim do período anterior (confirmado com dado real da
-    // Eloise: fecha "22/05" mas o período é 21/04 a 20/05, não 22/04 a 22/05).
-    const rotulo = new Date(baseAberta.getFullYear(), baseAberta.getMonth() - i, dia);
-    const dataFim = new Date(rotulo.getFullYear(), rotulo.getMonth(), dia - 2);
-    const dataInicioObj = new Date(rotulo.getFullYear(), rotulo.getMonth() - 1, dia - 1);
-    arr.push({
-      key: formatarISODate(rotulo),
-      label: String(rotulo.getDate()).padStart(2, '0') + ' ' + MESES_PT[rotulo.getMonth()],
-      sub: i === 0 ? '(ABERTA)' : '',
-      dataInicio: formatarISODate(dataInicioObj),
-      dataFim: formatarISODate(dataFim)
-    });
-  }
-  return arr;
 }
 
 function renderMonthTabs() {
@@ -1543,25 +1517,19 @@ function renderMonthTabs() {
   `).join('');
 }
 
-async function selectMonth(key) {
+function selectMonth(key) {
   mesAtivo = key;
   renderMonthTabs();
-  await carregarMovimentacao(key);
+  renderMovimentacaoDoMesAtivo();
 }
 
-// Quando troca o médico filtrado, o período passa a seguir o dia de
-// fechamento DAQUELE médico (ou o padrão da empresa, se ele ainda não tiver
-// esse dado sincronizado). Isso é o que faz a aba mudar de "25 JUL" pra
-// "22 JUL", por exemplo, exatamente como no sistema real.
-async function aoMudarFiltroMedico() {
-  const fCod = document.getElementById('filtro-medico').value;
-  const membro = fCod !== 'todos' ? membros.find(m => String(m.cod_usuario) === String(fCod)) : null;
-  const diaFechamento = (membro && membro.dia_fechamento_cache) || DIA_FECHAMENTO_PADRAO;
-
-  meses = gerarPeriodos(diaFechamento);
-  mesAtivo = meses[meses.length - 1].key;
-  renderMonthTabs();
-  await carregarMovimentacao(mesAtivo);
+// Trocar o médico filtrado muda quais lançamentos entram nos grupos (cada
+// médico tem suas próprias faturas/`codcobranca`) — por isso reagrupa do
+// zero, mas sem precisar buscar nada de novo na rede (os dados brutos de
+// todos os médicos da clínica já estão em memória).
+function aoMudarFiltroMedico() {
+  mesAtivo = null;
+  recalcularPeriodosEexibir();
 }
 
 // Mapeamento confirmado com dado real do BigQuery em 15/07/2026:
@@ -1573,36 +1541,105 @@ function mapearDocumento(codigoFiscal) {
   return mapa[String(codigoFiscal)] || 'outro';
 }
 
-async function carregarMovimentacao(mesKey) {
-  const mesObj = meses.find(m => m.key === mesKey);
-  if (!mesObj) return;
-
-  const { dataInicio, dataFim } = mesObj;
-  const cacheKey = sessao.clinicaId + '_' + dataInicio + '_' + dataFim;
+// Busca todas as movimentações dos últimos ~7 meses de uma vez (dá folga
+// suficiente pra sempre ter as últimas faturas fechadas + a aberta). Isso
+// substitui as buscas repetidas por período — agora só existe UMA busca por
+// clínica, e trocar de aba/filtro só reagrupa o que já está em memória.
+async function carregarMovimentacaoBruta() {
+  const cacheKey = sessao.clinicaId;
   if (movimentacoesCache[cacheKey]) {
-    renderMovimentacao(movimentacoesCache[cacheKey]);
+    movimentacoesBrutas = movimentacoesCache[cacheKey];
+    recalcularPeriodosEexibir();
     return;
   }
 
   const tbody = document.getElementById('movimentacao-table');
   tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state">Carregando movimentações...</div></td></tr>`;
 
+  const seteMesesAtras = new Date();
+  seteMesesAtras.setMonth(seteMesesAtras.getMonth() - 7);
+  const dataInicio = formatarISODate(seteMesesAtras);
+
   try {
     const r = await chamarAppsScript({
-      acao: 'movimentacoes',
-      token: sessao.token,
-      clinica_id: sessao.clinicaId,
-      dataInicio, dataFim
+      acao: 'movimentacoes', token: sessao.token, clinica_id: sessao.clinicaId, dataInicio
     });
     if (!r.ok) {
       tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state">${r.erro || 'Erro ao carregar movimentações.'}</div></td></tr>`;
       return;
     }
     movimentacoesCache[cacheKey] = r.movimentacoes || [];
-    renderMovimentacao(movimentacoesCache[cacheKey]);
+    movimentacoesBrutas = movimentacoesCache[cacheKey];
+    recalcularPeriodosEexibir();
   } catch (e) {
     tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state">Erro de conexão: ${e.message}</div></td></tr>`;
   }
+}
+
+// Aplica o filtro de médico + a regra de "some depois da data de corte" (pra
+// quem foi inativado), e agrupa o resultado pela fatura real
+// (`datavencimentofatura`). Quem ainda não tem fatura fechada cai no grupo
+// especial "aberto".
+function recalcularPeriodosEexibir() {
+  const fCod = document.getElementById('filtro-medico').value;
+
+  let linhas = fCod !== 'todos'
+    ? movimentacoesBrutas.filter(r => String(r.codusuario) === String(fCod))
+    : movimentacoesBrutas.slice();
+
+  linhas = linhas.filter(r => {
+    const membro = membros.find(m => String(m.cod_usuario) === String(r.codusuario));
+    if (!membro || membro.ativo_local || !membro.data_corte) return true;
+    return String(r.datamovimentacao).slice(0, 10) <= String(membro.data_corte).slice(0, 10);
+  });
+
+  const grupos = {};
+  linhas.forEach(r => {
+    const chave = r.datavencimentofatura ? String(r.datavencimentofatura).slice(0, 10) : 'aberto';
+    (grupos[chave] = grupos[chave] || []).push(r);
+  });
+
+  const fechadasOrdenadas = Object.keys(grupos).filter(k => k !== 'aberto').sort();
+  const ultimasChaves = grupos['aberto']
+    ? [...fechadasOrdenadas.slice(-4), 'aberto']
+    : fechadasOrdenadas.slice(-5);
+
+  meses = ultimasChaves.map(k => {
+    if (k === 'aberto') {
+      const membro = fCod !== 'todos' ? membros.find(m => String(m.cod_usuario) === String(fCod)) : null;
+      const dia = (membro && membro.dia_fechamento_cache) || DIA_FECHAMENTO_PADRAO;
+      const hoje = new Date();
+      const fechamentoDesteMes = new Date(hoje.getFullYear(), hoje.getMonth(), dia);
+      const proximoFechamento = (hoje > fechamentoDesteMes)
+        ? new Date(hoje.getFullYear(), hoje.getMonth() + 1, dia)
+        : fechamentoDesteMes;
+      return {
+        key: 'aberto',
+        label: String(proximoFechamento.getDate()).padStart(2, '0') + ' ' + MESES_PT[proximoFechamento.getMonth()],
+        sub: '(ABERTA · estimado)',
+        rows: grupos[k]
+      };
+    }
+    const [ano, mes, dia] = k.split('-').map(Number);
+    return {
+      key: k,
+      label: String(dia).padStart(2, '0') + ' ' + MESES_PT[mes - 1],
+      sub: '',
+      rows: grupos[k]
+    };
+  });
+
+  if (!mesAtivo || !meses.find(m => m.key === mesAtivo)) {
+    mesAtivo = meses.length ? meses[meses.length - 1].key : null;
+  }
+
+  renderMonthTabs();
+  renderMovimentacaoDoMesAtivo();
+}
+
+function renderMovimentacaoDoMesAtivo() {
+  const grupo = meses.find(m => m.key === mesAtivo);
+  renderMovimentacao(grupo ? grupo.rows : []);
 }
 
 function renderMovimentacao(linhasBrutas) {
@@ -1610,38 +1647,21 @@ function renderMovimentacao(linhasBrutas) {
   const showMedicoCol = fCod === 'todos';
   document.getElementById('th-medico').classList.toggle('hidden', !showMedicoCol);
 
-  let rows = linhasBrutas.map(r => {
+  const rows = linhasBrutas.map(r => {
     const membro = membros.find(m => String(m.cod_usuario) === String(r.codusuario));
     return {
-      dataRaw: r.datamovimentacao,
       data: formatarData(r.datamovimentacao),
       unidade: r.nomeunidade || '--',
       medicoNome: membro ? nomeExibicao(membro) : ('Código ' + r.codusuario),
-      codusuario: r.codusuario,
       desc: r.descricao || '--',
       valor: parseFloat(r.valormovimentacao || 0),
-      documento: mapearDocumento(r.codmodalidadefiscal),
-      membroInativoComCorte: !!(membro && !membro.ativo_local && membro.data_corte),
-      dataCorte: membro ? membro.data_corte : null
+      documento: mapearDocumento(r.codmodalidadefiscal)
     };
   });
 
-  // Médico inativado com data de corte: some das movimentações depois dessa
-  // data, mas continua aparecendo normalmente em tudo até ela (fechamento
-  // financeiro do período em que ele ainda atendia).
-  rows = rows.filter(r => {
-    if (!r.membroInativoComCorte) return true;
-    // Comparação direta de texto (funciona certinho em formato ISO
-    // "AAAA-MM-DD") em vez de converter pra Date, pra não sofrer o mesmo
-    // problema de fuso horário corrigido em formatarData().
-    return String(r.dataRaw).slice(0, 10) <= String(r.dataCorte).slice(0, 10);
-  });
-
-  if (fCod !== 'todos') rows = rows.filter(r => String(r.codusuario) === String(fCod));
-
   const tbody = document.getElementById('movimentacao-table');
   if (rows.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="${showMedicoCol ? 5 : 4}"><div class="empty-state">Nenhuma movimentação neste mês para o filtro selecionado.</div></td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="${showMedicoCol ? 5 : 4}"><div class="empty-state">Nenhuma movimentação nessa fatura para o filtro selecionado.</div></td></tr>`;
   } else {
     tbody.innerHTML = rows.map(r => `
       <tr>
@@ -1655,10 +1675,33 @@ function renderMovimentacao(linhasBrutas) {
   }
 
   const total = rows.reduce((s, r) => s + r.valor, 0);
+
+  // Soma o valor OFICIAL de cada fatura envolvida (por codcobranca único, pra
+  // não contar duas vezes nem confundir médicos diferentes que tenham o
+  // mesmo valor por coincidência). Isso só existe pra faturas já fechadas —
+  // no grupo "aberto" não tem valor oficial ainda, então essa comparação
+  // simplesmente não aparece.
+  const cobrancasUnicas = {};
+  linhasBrutas.forEach(r => {
+    if (r.codcobranca != null && r.valoroficialfatura != null && !(r.codcobranca in cobrancasUnicas)) {
+      cobrancasUnicas[r.codcobranca] = parseFloat(r.valoroficialfatura);
+    }
+  });
+  const totalOficial = Object.values(cobrancasUnicas).reduce((s, v) => s + v, 0);
+  const temValorOficial = Object.keys(cobrancasUnicas).length > 0;
+  const diferenca = Math.abs(total - totalOficial);
+  const bateComOficial = !temValorOficial || diferenca < 0.01;
+
   document.getElementById('credit-card').innerHTML = `
     <div class="credit-label">Total do período</div>
     <div class="credit-value">${formatarMoeda(total)}</div>
     <div class="credit-due">${rows.length} lançamento${rows.length !== 1 ? 's' : ''}</div>
+    ${temValorOficial ? `
+      <div style="margin-top:8px; font-size:11.5px; ${bateComOficial ? 'color:var(--green);' : 'color:var(--red);'}">
+        ${bateComOficial
+          ? '✓ Bate com o valor oficial da(s) fatura(s) na Livance'
+          : `⚠ Diverge do valor oficial da Livance: ${formatarMoeda(totalOficial)} (diferença de ${formatarMoeda(diferenca)})`}
+      </div>` : ''}
   `;
 
   const totalFatura = rows.filter(r => r.documento === 'fatura_locacao').reduce((s, r) => s + r.valor, 0);
@@ -1675,7 +1718,7 @@ function renderMovimentacao(linhasBrutas) {
     </div>
   `;
 
-  if (mesAtivo === meses[meses.length - 1].key) atualizarMetricasHome();
+  if (meses.length && mesAtivo === meses[meses.length - 1].key) atualizarMetricasHome();
 }
 
 /* =====================================================================
@@ -1918,7 +1961,7 @@ function setView(view) {
   document.getElementById('view-' + view).classList.remove('hidden');
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.querySelector('.nav-item[data-view="' + view + '"]').classList.add('active');
-  if (view === 'movimentacao') carregarMovimentacao(mesAtivo);
+  if (view === 'movimentacao') recalcularPeriodosEexibir();
   if (view === 'cadastro') abrirTelaCadastro();
 }
 
