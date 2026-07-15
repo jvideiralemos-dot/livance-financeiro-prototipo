@@ -1508,11 +1508,17 @@ function gerarPeriodos(diaFechamento) {
 
   const arr = [];
   for (let i = 4; i >= 0; i--) {
-    const dataFim = new Date(baseAberta.getFullYear(), baseAberta.getMonth() - i, dia);
-    const dataInicioObj = new Date(baseAberta.getFullYear(), baseAberta.getMonth() - i - 1, dia + 1);
+    // "rotulo" é a data que aparece na aba (ex: 22 MAI) — é a data de
+    // fechamento oficial, mas o período de movimentações de verdade tem uma
+    // defasagem de 2 dias: termina 2 dias antes do fechamento e começa no dia
+    // seguinte ao fim do período anterior (confirmado com dado real da
+    // Eloise: fecha "22/05" mas o período é 21/04 a 20/05, não 22/04 a 22/05).
+    const rotulo = new Date(baseAberta.getFullYear(), baseAberta.getMonth() - i, dia);
+    const dataFim = new Date(rotulo.getFullYear(), rotulo.getMonth(), dia - 2);
+    const dataInicioObj = new Date(rotulo.getFullYear(), rotulo.getMonth() - 1, dia - 1);
     arr.push({
-      key: formatarISODate(dataFim),
-      label: String(dataFim.getDate()).padStart(2, '0') + ' ' + MESES_PT[dataFim.getMonth()],
+      key: formatarISODate(rotulo),
+      label: String(rotulo.getDate()).padStart(2, '0') + ' ' + MESES_PT[rotulo.getMonth()],
       sub: i === 0 ? '(ABERTA)' : '',
       dataInicio: formatarISODate(dataInicioObj),
       dataFim: formatarISODate(dataFim)
