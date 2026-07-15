@@ -865,11 +865,18 @@ function formatarMoeda(v) {
   return 'R$ ' + n.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
 }
 
+// Datas do BigQuery vêm como texto puro ("2026-05-20", sem horário). Se
+// deixarmos o JS interpretar isso com `new Date(iso)`, ele assume meia-noite
+// em UTC, e ao exibir no fuso local (Brasil, UTC-3) a data "escorrega" um dia
+// pra trás. Por isso lemos ano/mês/dia manualmente, sem passar pela conversão
+// de fuso horário.
 function formatarData(iso) {
   if (!iso) return '--';
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) return String(iso);
-  return String(d.getDate()).padStart(2, '0') + ' ' + MESES_PT[d.getMonth()] + '/' + String(d.getFullYear()).slice(-2);
+  const partes = String(iso).slice(0, 10).split('-');
+  if (partes.length !== 3) return String(iso);
+  const ano = parseInt(partes[0], 10), mes = parseInt(partes[1], 10), dia = parseInt(partes[2], 10);
+  if (!ano || !mes || !dia) return String(iso);
+  return String(dia).padStart(2, '0') + ' ' + MESES_PT[mes - 1] + '/' + String(ano).slice(-2);
 }
 
 function formatarDataHora(iso) {
@@ -1624,7 +1631,10 @@ function renderMovimentacao(linhasBrutas) {
   // financeiro do período em que ele ainda atendia).
   rows = rows.filter(r => {
     if (!r.membroInativoComCorte) return true;
-    return new Date(r.dataRaw) <= new Date(r.dataCorte + 'T23:59:59');
+    // Comparação direta de texto (funciona certinho em formato ISO
+    // "AAAA-MM-DD") em vez de converter pra Date, pra não sofrer o mesmo
+    // problema de fuso horário corrigido em formatarData().
+    return String(r.dataRaw).slice(0, 10) <= String(r.dataCorte).slice(0, 10);
   });
 
   if (fCod !== 'todos') rows = rows.filter(r => String(r.codusuario) === String(fCod));
