@@ -848,7 +848,15 @@ async function chamarAppsScript(payload) {
     },
     body: JSON.stringify(payload)
   });
-  return resp.json();
+  const texto = await resp.text();
+  try {
+    return JSON.parse(texto);
+  } catch (e) {
+    // Não veio JSON — provavelmente uma página de erro/login do Google
+    // passando pelo proxy. Mostra o começo do HTML pra dar pra diagnosticar
+    // sem precisar abrir os Logs da Edge Function no Supabase.
+    throw new Error('resposta não é JSON (HTTP ' + resp.status + '): ' + texto.slice(0, 200));
+  }
 }
 
 function formatarMoeda(v) {
