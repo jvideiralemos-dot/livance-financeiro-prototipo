@@ -778,9 +778,8 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 // Não é mais chamada direto daqui — o navegador não consegue acessar essa URL
 // por causa de CORS (ver nota em chamarAppsScript). Ela agora só é usada de
 // dentro da Edge Function "swift-service" do Supabase, que atua como proxy.
-// URL pública (deploy "Qualquer pessoa", sem restrição de domínio) — trocou
-// de formato depois do ajuste de permissão feito em 14/07/2026.
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8VIIIh1w8SNHf4niEdSO84eXBYnO7oLhZKc88yWjNcjkixjpdZs52s64PJJQMJ4xa/exec';
+// URL da implantação pública mais recente (atualizada em 15/07/2026).
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbygcMhH9xzt1dTh5IGXZ34bxw4hfPVjRhYf6grA-c8qURzct_WMcZ3g2sWLDds_DRGL/exec';
 
 const MESES_PT = ['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ'];
 
@@ -1102,7 +1101,7 @@ function celulaFechamento(m) {
 
 function renderMedicos() {
   const isGestor = sessao.tipo === 'gestor';
-  const pendentes = membros.filter(m => !m.nome_cache).length;
+  const pendentes = membros.filter(m => !m.nome_cache || !m.dia_fechamento_cache).length;
   document.getElementById('btn-sincronizar-todos-medicos').classList.toggle('hidden', !isGestor || pendentes === 0);
   document.getElementById('medicos-table').innerHTML = membros.map(m => `
     <tr>
@@ -1114,7 +1113,7 @@ function renderMedicos() {
       <td>${celulaFechamento(m)}</td>
       <td>${statusPillComData(m)}</td>
       ${isGestor ? `<td>
-        ${!m.nome_cache ? `<span class="action-link" onclick="sincronizarMembro('${m.id}', ${m.cod_usuario}, 'profissionais')">Sincronizar</span>` : ''}
+        ${(!m.nome_cache || !m.dia_fechamento_cache) ? `<span class="action-link" onclick="sincronizarMembro('${m.id}', ${m.cod_usuario}, 'profissionais')">Sincronizar</span>` : ''}
         ${m.ativo_local
           ? `<span class="action-link danger" onclick="abrirModalInativar('${m.id}', 'profissionais')">Inativar</span>`
           : `<span class="action-link" onclick="reativarMembro('${m.id}', 'profissionais')">Reativar</span>`}</td>` : ''}
@@ -1251,7 +1250,7 @@ async function sincronizarMembro(membroId, codUsuario, contexto) {
 }
 
 async function sincronizarTodosPendentes(lista, contexto) {
-  const pendentes = lista.filter(m => !m.nome_cache);
+  const pendentes = lista.filter(m => !m.nome_cache || !m.dia_fechamento_cache);
   if (pendentes.length === 0) { alert('Não há membros pendentes de sincronização.'); return; }
   if (!confirm(`Sincronizar ${pendentes.length} membro(s) pendente(s)? Isso pode levar alguns segundos.`)) return;
 
@@ -1407,7 +1406,7 @@ async function carregarMembrosClinicaEditando(clinicaId) {
 }
 
 function renderMembrosClinicaEditando() {
-  const pendentes = membrosClinicaEditando.filter(m => !m.nome_cache).length;
+  const pendentes = membrosClinicaEditando.filter(m => !m.nome_cache || !m.dia_fechamento_cache).length;
   document.getElementById('btn-sincronizar-todos-cadastro').classList.toggle('hidden', pendentes === 0);
   document.getElementById('cadastro-membros-table').innerHTML = membrosClinicaEditando.map(m => `
     <tr>
@@ -1417,7 +1416,7 @@ function renderMembrosClinicaEditando() {
       <td>${celulaFechamento(m)}</td>
       <td>${statusPillComData(m)}</td>
       <td>
-        ${!m.nome_cache ? `<span class="action-link" onclick="sincronizarMembro('${m.id}', ${m.cod_usuario}, 'cadastro')">Sincronizar</span>` : ''}
+        ${(!m.nome_cache || !m.dia_fechamento_cache) ? `<span class="action-link" onclick="sincronizarMembro('${m.id}', ${m.cod_usuario}, 'cadastro')">Sincronizar</span>` : ''}
         ${m.ativo_local
           ? `<span class="action-link danger" onclick="abrirModalInativar('${m.id}', 'cadastro')">Inativar</span>`
           : `<span class="action-link" onclick="reativarMembro('${m.id}', 'cadastro')">Reativar</span>`}
