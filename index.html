@@ -607,7 +607,7 @@
               <button class="btn hidden" id="btn-sincronizar-todos-cadastro" style="margin-left:auto" onclick="sincronizarTodosPendentes(membrosClinicaEditando, 'cadastro')">Sincronizar pendentes</button>
             </div>
             <table>
-              <thead><tr><th>Código</th><th>Nome</th><th>Especialidade</th><th>Status</th><th>Ações</th></tr></thead>
+              <thead><tr><th>Código</th><th>Nome</th><th>Especialidade</th><th>Fechamento</th><th>Status</th><th>Ações</th></tr></thead>
               <tbody id="cadastro-membros-table"></tbody>
             </table>
           </div>
@@ -638,7 +638,7 @@
 
         <div class="card">
           <table>
-            <thead><tr><th>Código</th><th>Médico</th><th>CPF</th><th>Especialidade</th><th>Unidade habitual</th><th>Status</th><th class="hidden" id="th-acoes-gestor">Ações</th></tr></thead>
+            <thead><tr><th>Código</th><th>Médico</th><th>CPF</th><th>Especialidade</th><th>Unidade habitual</th><th>Fechamento</th><th>Status</th><th class="hidden" id="th-acoes-gestor">Ações</th></tr></thead>
             <tbody id="medicos-table"></tbody>
           </table>
         </div>
@@ -653,7 +653,7 @@
         <div class="filter-row">
           <div class="filter-field wide">
             <div class="field-label">Profissional</div>
-            <select id="filtro-medico" onchange="renderMovimentacaoAtual()">
+            <select id="filtro-medico" onchange="aoMudarFiltroMedico()">
               <option value="todos">Todos os médicos</option>
             </select>
           </div>
@@ -778,7 +778,9 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 // Não é mais chamada direto daqui — o navegador não consegue acessar essa URL
 // por causa de CORS (ver nota em chamarAppsScript). Ela agora só é usada de
 // dentro da Edge Function "swift-service" do Supabase, que atua como proxy.
-const APPS_SCRIPT_URL = 'https://script.google.com/a/macros/livance.com.br/s/AKfycby8VIIIh1w8SNHf4niEdSO84eXBYnO7oLhZKc88yWjNcjkixjpdZs52s64PJJQMJ4xa/exec';
+// URL pública (deploy "Qualquer pessoa", sem restrição de domínio) — trocou
+// de formato depois do ajuste de permissão feito em 14/07/2026.
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby8VIIIh1w8SNHf4niEdSO84eXBYnO7oLhZKc88yWjNcjkixjpdZs52s64PJJQMJ4xa/exec';
 
 const MESES_PT = ['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ'];
 
@@ -1030,7 +1032,7 @@ async function trocarClinicaGestor() {
 
 async function carregarTudoDaClinica() {
   movimentacoesCache = {};
-  meses = gerarMeses();
+  meses = gerarPeriodos(DIA_FECHAMENTO_PADRAO);
   mesAtivo = meses[meses.length - 1].key;
   renderMonthTabs();
 
@@ -1086,6 +1088,18 @@ function statusPillComData(m) {
   return pill;
 }
 
+// Mostra o dia de fechamento (vem do BigQuery, campo `diavencimento`, cacheado
+// em `dia_fechamento_cache`). Destaca em laranja quem estiver diferente do
+// padrão da empresa (dia 25) — é exatamente o que ajuda a "bater o olho" e
+// achar quem ficou fora do combinado.
+function celulaFechamento(m) {
+  if (!m.dia_fechamento_cache) return '--';
+  const diferente = m.dia_fechamento_cache !== DIA_FECHAMENTO_PADRAO;
+  return diferente
+    ? `<span style="color:var(--orange); font-weight:600;">Dia ${m.dia_fechamento_cache}</span>`
+    : `Dia ${m.dia_fechamento_cache}`;
+}
+
 function renderMedicos() {
   const isGestor = sessao.tipo === 'gestor';
   const pendentes = membros.filter(m => !m.nome_cache).length;
@@ -1097,6 +1111,7 @@ function renderMedicos() {
       <td>${m.cpf_cache || '--'}</td>
       <td>${m.especialidade_cache || '--'}</td>
       <td>${m.unidade_cache || '--'}</td>
+      <td>${celulaFechamento(m)}</td>
       <td>${statusPillComData(m)}</td>
       ${isGestor ? `<td>
         ${!m.nome_cache ? `<span class="action-link" onclick="sincronizarMembro('${m.id}', ${m.cod_usuario}, 'profissionais')">Sincronizar</span>` : ''}
@@ -1104,7 +1119,7 @@ function renderMedicos() {
           ? `<span class="action-link danger" onclick="abrirModalInativar('${m.id}', 'profissionais')">Inativar</span>`
           : `<span class="action-link" onclick="reativarMembro('${m.id}', 'profissionais')">Reativar</span>`}</td>` : ''}
     </tr>
-  `).join('') || `<tr><td colspan="7"><div class="empty-state">Nenhum profissional cadastrado nesta clínica.</div></td></tr>`;
+  `).join('') || `<tr><td colspan="8"><div class="empty-state">Nenhum profissional cadastrado nesta clínica.</div></td></tr>`;
 }
 
 // Estado do modal de inativação — guarda qual membro e em qual tela
@@ -1210,6 +1225,7 @@ async function sincronizarCacheMembro(membroId, cod) {
       return { ok: false, erro: dadosBQ.erro || 'não foi possível buscar os dados no banco da Livance agora' };
     }
     const m = dadosBQ.membro;
+    const diaFechamento = m.diavencimento ? parseInt(m.diavencimento, 10) : null;
     const r = await rpc('fn_atualizar_cache_membro', {
       p_token: sessao.token,
       p_membro_id: membroId,
@@ -1217,7 +1233,8 @@ async function sincronizarCacheMembro(membroId, cod) {
       p_cpf: m.cpf || null,
       p_especialidade: m.especialidade || null,
       p_crm: null,      // BigQuery não devolve CRM hoje (ver nota na consulta acaoMembro do Apps Script)
-      p_unidade: null   // BigQuery não devolve unidade hoje
+      p_unidade: null,  // BigQuery não devolve unidade hoje
+      p_dia_fechamento: diaFechamento
     });
     if (!r.ok) return { ok: false, erro: r.erro || 'Supabase recusou salvar o cache.' };
     return { ok: true };
@@ -1377,13 +1394,13 @@ async function salvarClinica() {
 
 async function carregarMembrosClinicaEditando(clinicaId) {
   const tbody = document.getElementById('cadastro-membros-table');
-  tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state">Carregando...</div></td></tr>`;
+  tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state">Carregando...</div></td></tr>`;
   try {
     const r = await rpc('fn_listar_membros', { p_token: sessao.token, p_clinica_id: clinicaId });
-    if (!r.ok) { tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state">${r.erro || 'Erro ao carregar membros.'}</div></td></tr>`; return; }
+    if (!r.ok) { tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state">${r.erro || 'Erro ao carregar membros.'}</div></td></tr>`; return; }
     membrosClinicaEditando = r.membros || [];
   } catch (e) {
-    tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state">Erro de conexão: ${e.message}</div></td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state">Erro de conexão: ${e.message}</div></td></tr>`;
     return;
   }
   renderMembrosClinicaEditando();
@@ -1397,6 +1414,7 @@ function renderMembrosClinicaEditando() {
       <td>${m.cod_usuario}</td>
       <td>${nomeExibicao(m)}</td>
       <td>${m.especialidade_cache || '--'}</td>
+      <td>${celulaFechamento(m)}</td>
       <td>${statusPillComData(m)}</td>
       <td>
         ${!m.nome_cache ? `<span class="action-link" onclick="sincronizarMembro('${m.id}', ${m.cod_usuario}, 'cadastro')">Sincronizar</span>` : ''}
@@ -1405,7 +1423,7 @@ function renderMembrosClinicaEditando() {
           : `<span class="action-link" onclick="reativarMembro('${m.id}', 'cadastro')">Reativar</span>`}
       </td>
     </tr>
-  `).join('') || `<tr><td colspan="5"><div class="empty-state">Nenhum membro incluído ainda.</div></td></tr>`;
+  `).join('') || `<tr><td colspan="6"><div class="empty-state">Nenhum membro incluído ainda.</div></td></tr>`;
 }
 
 async function cadastroAdicionarMembro() {
@@ -1469,18 +1487,36 @@ async function salvarNovaClinica() {
    MOVIMENTAÇÕES (via Apps Script → BigQuery)
    ===================================================================== */
 
-function gerarMeses() {
+// Dia de fechamento padrão da empresa — usado na visão "Todos os médicos" e
+// pra quem ainda não tem `dia_fechamento_cache` preenchido.
+const DIA_FECHAMENTO_PADRAO = 25;
+
+function formatarISODate(d) {
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+
+// Gera os últimos 5 períodos de fechamento (cada um terminando no "dia" do
+// mês), no mesmo estilo do sistema real da Livance (ex: 22 FEV, 22 MAR...).
+// Isso substitui o antigo esquema de "mês calendário fixo (dia 1 a 30/31)".
+function gerarPeriodos(diaFechamento) {
+  const dia = diaFechamento || DIA_FECHAMENTO_PADRAO;
   const hoje = new Date();
+  const fechamentoDesteMes = new Date(hoje.getFullYear(), hoje.getMonth(), dia);
+  // Se o fechamento deste mês já passou, o período em aberto é o do mês seguinte.
+  const baseAberta = (hoje > fechamentoDesteMes)
+    ? new Date(hoje.getFullYear(), hoje.getMonth() + 1, dia)
+    : fechamentoDesteMes;
+
   const arr = [];
   for (let i = 4; i >= 0; i--) {
-    const d = new Date(hoje.getFullYear(), hoje.getMonth() - i, 1);
-    const key = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+    const dataFim = new Date(baseAberta.getFullYear(), baseAberta.getMonth() - i, dia);
+    const dataInicioObj = new Date(baseAberta.getFullYear(), baseAberta.getMonth() - i - 1, dia + 1);
     arr.push({
-      key,
-      label: '01 ' + MESES_PT[d.getMonth()],
+      key: formatarISODate(dataFim),
+      label: String(dataFim.getDate()).padStart(2, '0') + ' ' + MESES_PT[dataFim.getMonth()],
       sub: i === 0 ? '(ABERTA)' : '',
-      ano: d.getFullYear(),
-      mesNum: d.getMonth() + 1
+      dataInicio: formatarISODate(dataInicioObj),
+      dataFim: formatarISODate(dataFim)
     });
   }
   return arr;
@@ -1501,9 +1537,25 @@ async function selectMonth(key) {
   await carregarMovimentacao(key);
 }
 
-// ATENÇÃO: o mapeamento de codmodalidadefiscal → tipo de documento ainda não
-// foi confirmado com a equipe. Ajuste os códigos assim que souber os valores
-// reais que vêm do BigQuery (hoje é só um placeholder pra não travar a tela).
+// Quando troca o médico filtrado, o período passa a seguir o dia de
+// fechamento DAQUELE médico (ou o padrão da empresa, se ele ainda não tiver
+// esse dado sincronizado). Isso é o que faz a aba mudar de "25 JUL" pra
+// "22 JUL", por exemplo, exatamente como no sistema real.
+async function aoMudarFiltroMedico() {
+  const fCod = document.getElementById('filtro-medico').value;
+  const membro = fCod !== 'todos' ? membros.find(m => String(m.cod_usuario) === String(fCod)) : null;
+  const diaFechamento = (membro && membro.dia_fechamento_cache) || DIA_FECHAMENTO_PADRAO;
+
+  meses = gerarPeriodos(diaFechamento);
+  mesAtivo = meses[meses.length - 1].key;
+  renderMonthTabs();
+  await carregarMovimentacao(mesAtivo);
+}
+
+// Mapeamento confirmado com dado real do BigQuery em 15/07/2026:
+// código 1 = Mensalidade/Crédito (nota fiscal), código 2 = Utilização de
+// Sala/Período Garantido (fatura de locação). Baseado numa amostra pequena
+// (um médico só) — se aparecer um código diferente de 1/2, cai em "outro".
 function mapearDocumento(codigoFiscal) {
   const mapa = { '1': 'nota_fiscal', '2': 'fatura_locacao' };
   return mapa[String(codigoFiscal)] || 'outro';
@@ -1513,11 +1565,8 @@ async function carregarMovimentacao(mesKey) {
   const mesObj = meses.find(m => m.key === mesKey);
   if (!mesObj) return;
 
-  const dataInicio = mesObj.ano + '-' + String(mesObj.mesNum).padStart(2, '0') + '-01';
-  const ultimoDia = new Date(mesObj.ano, mesObj.mesNum, 0).getDate();
-  const dataFim = mesObj.ano + '-' + String(mesObj.mesNum).padStart(2, '0') + '-' + String(ultimoDia).padStart(2, '0');
-
-  const cacheKey = sessao.clinicaId + '_' + mesKey;
+  const { dataInicio, dataFim } = mesObj;
+  const cacheKey = sessao.clinicaId + '_' + dataInicio + '_' + dataFim;
   if (movimentacoesCache[cacheKey]) {
     renderMovimentacao(movimentacoesCache[cacheKey]);
     return;
@@ -1554,10 +1603,10 @@ function renderMovimentacao(linhasBrutas) {
     return {
       dataRaw: r.datamovimentacao,
       data: formatarData(r.datamovimentacao),
-      unidade: (membro && membro.unidade_cache) || '--',
+      unidade: r.nomeunidade || '--',
       medicoNome: membro ? nomeExibicao(membro) : ('Código ' + r.codusuario),
       codusuario: r.codusuario,
-      desc: r.descricaoexterna,
+      desc: r.descricao || '--',
       valor: parseFloat(r.valormovimentacao || 0),
       documento: mapearDocumento(r.codmodalidadefiscal),
       membroInativoComCorte: !!(membro && !membro.ativo_local && membro.data_corte),
@@ -1864,11 +1913,6 @@ function abrirSolicitacaoCnpj() {
   document.querySelector('.nav-item[data-view="solicitacoes"]').classList.add('active');
   novaSolicitacao();
   document.getElementById('nova-sol-assunto').value = 'Alteração de CNPJ';
-}
-
-function renderMovimentacaoAtual() {
-  const cacheKey = sessao.clinicaId + '_' + mesAtivo;
-  renderMovimentacao(movimentacoesCache[cacheKey] || []);
 }
 
 /* =====================================================================
