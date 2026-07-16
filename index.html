@@ -2463,7 +2463,8 @@ async function carregarFaturasReaisOmie() {
       valor: formatarMoeda(c.valor_documento),
       status: mapearStatusOmie(c.status_titulo),
       codigoLancamentoOmie: c.codigo_lancamento_omie,
-      boletoGerado: !!(c.boleto && c.boleto.cGerado === 'S')
+      boletoGerado: !!(c.boleto && c.boleto.cGerado === 'S'),
+      codigoBarras: c.codigo_barras_ficha_compensacao || null
     })).sort((a, b) => paraISOBR(b.vencimento).localeCompare(paraISOBR(a.vencimento)));
 
     faturasSaoReais = true;
@@ -2490,23 +2491,11 @@ function mapearStatusOmie(statusTitulo) {
   return 'aberto';
 }
 
-// Busca o boleto (código de barras) na hora, só quando clicado — evita
-// buscar boleto de toda fatura sem necessidade.
-async function baixarBoletoFatura(codigoLancamento) {
-  if (!codigoLancamento) { alert('Essa fatura não tem código da Omie associado.'); return; }
-  try {
-    const r = await chamarOmieProxy({ acao: 'chamada_livre', endpoint: 'financas/contareceberboleto', call: 'ObterBoleto', param: { nCodTitulo: codigoLancamento } });
-    const dados = r.resultado || {};
-    if (dados.cCodBarras) {
-      prompt('Código de barras do boleto (copia e cola):', dados.cCodBarras);
-    } else if (dados.cLinkBoleto) {
-      window.open(dados.cLinkBoleto, '_blank');
-    } else {
-      alert('Boleto ainda não foi gerado pra essa fatura na Omie.');
-    }
-  } catch (e) {
-    alert('Erro ao buscar boleto: ' + e.message);
-  }
+// O código de barras já vem direto na listagem de contas a receber
+// (codigo_barras_ficha_compensacao) — não precisa de uma chamada extra.
+function baixarBoletoFatura(codigoBarras) {
+  if (!codigoBarras) { alert('Boleto ainda não foi gerado pra essa fatura na Omie.'); return; }
+  prompt('Código de barras do boleto (copia e cola):', codigoBarras);
 }
 
 function renderFinanceiro() {
@@ -2528,7 +2517,7 @@ function renderFinanceiro() {
       <td>${celulaAnexoFatura(f)}</td>
       <td><span class="download-link">Baixar NF ↓</span></td>
       <td>${faturasSaoReais
-        ? `<span class="download-link" onclick="baixarBoletoFatura(${f.codigoLancamentoOmie})">Baixar boleto ↓</span>`
+        ? `<span class="download-link" onclick="baixarBoletoFatura('${f.codigoBarras || ''}')">Baixar boleto ↓</span>`
         : '<span class="download-link">Baixar boleto ↓</span>'}</td>
     </tr>
   `).join('') || `<tr><td colspan="8"><div class="empty-state">Nenhuma fatura para os filtros selecionados.</div></td></tr>`;
