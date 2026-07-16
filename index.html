@@ -207,7 +207,22 @@
     display: flex;
     border-radius: 4px 4px 0 0;
     overflow-x: auto;
+    scroll-behavior: smooth;
   }
+  .month-tabs-arrow {
+    background: var(--orange);
+    border: none;
+    color: rgba(43,43,43,0.6);
+    font-size: 20px;
+    font-weight: 700;
+    cursor: pointer;
+    flex-shrink: 0;
+    width: 34px;
+    font-family: inherit;
+  }
+  .month-tabs-arrow:hover { color: rgba(43,43,43,0.95); }
+  .month-tabs-arrow.left { border-radius: 4px 0 0 0; }
+  .month-tabs-arrow.right { border-radius: 0 4px 0 0; }
   .month-tab {
     flex: 1;
     min-width: 110px;
@@ -322,8 +337,9 @@
   .ticket-preview { font-size: 12px; color: var(--text-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
   .status-tag { font-size: 10.5px; font-weight: 700; padding: 2px 8px; border-radius: 99px; text-transform: uppercase; letter-spacing: 0.3px; }
-  .status-tag.aberto { background: #FFF1DC; color: var(--orange-dark); }
-  .status-tag.encerrado { background: #E7F5EC; color: var(--green); }
+  .status-tag.aberta { background: #FFF1DC; color: var(--orange-dark); }
+  .status-tag.em_andamento { background: #E3EEFC; color: #2B5FA8; }
+  .status-tag.resolvida { background: #E7F5EC; color: var(--green); }
 
   .ticket-chat { flex: 1; display: flex; flex-direction: column; }
   .ticket-chat-header { padding: 16px 20px; border-bottom: 1px solid var(--line); }
@@ -469,7 +485,7 @@
 <div class="app hidden" id="app">
   <div class="sidebar">
     <div class="sidebar-profile">
-      <div class="avatar-circle">IMAGEM<br>NÃO DISPONÍVEL</div>
+      <div class="avatar-circle"><img src="data:image/png;base64,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" alt="Livance" style="width:60px; height:auto;"></div>
       <div class="profile-name" id="sidebar-profile-name">Clínica</div>
       <div id="gestor-clinica-selector" class="hidden" style="margin-top:10px;">
         <select id="gestor-clinica-select" onchange="trocarClinicaGestor()" style="width:100%; font-size:11.5px; padding:6px 8px;"></select>
@@ -482,7 +498,7 @@
       <button class="nav-item" data-view="cadastro" onclick="setView('cadastro')">
         <span class="left"><span class="icon">&#9633;</span> Cadastro</span>
       </button>
-      <button class="nav-item" id="nav-profissionais" data-view="medicos" onclick="setView('medicos')">
+      <button class="nav-item hidden" id="nav-profissionais" data-view="medicos" onclick="setView('medicos')">
         <span class="left"><span class="icon">&#9679;</span> Profissionais</span>
       </button>
       <button class="nav-item" data-view="movimentacao" onclick="setView('movimentacao')">
@@ -497,13 +513,16 @@
       <button class="nav-item" data-view="solicitacoes" onclick="setView('solicitacoes')">
         <span class="left"><span class="icon">&#9993;</span> Solicitações</span>
       </button>
+      <button class="nav-item hidden" id="nav-avisos" data-view="avisos" onclick="setView('avisos')">
+        <span class="left"><span class="icon">&#128276;</span> Avisos</span>
+      </button>
     </div>
   </div>
 
   <div class="main">
     <div class="topbar" style="position: relative;">
       <div class="topbar-left">
-        <span class="topbar-icon" onclick="toggleAvisos()" title="Avisos">&#128276;<span class="badge-count" id="avisos-count">2</span></span>
+        <span class="topbar-icon" onclick="toggleAvisos()" title="Avisos">&#128276;<span class="badge-count hidden" id="avisos-count">0</span></span>
       </div>
       <div class="topbar-right">
         <span id="topbar-saudacao">Olá!</span>
@@ -609,7 +628,6 @@
             </div>
             <div id="cad-erro" class="hidden" style="color:var(--red); font-size:12px; margin-top:12px;"></div>
             <button class="btn primary" id="cad-salvar-btn" style="margin-top:18px" onclick="salvarClinica()">Salvar alterações</button>
-            <p class="gestor-hint">Os demais campos do protótipo original (nome fantasia, inscrição estadual, unidade principal, plano, endereço fiscal etc.) ainda não têm coluna correspondente no banco — foram retirados daqui até existir onde salvar.</p>
           </div>
 
           <div class="card form-card" id="cadastro-membro-form-card">
@@ -686,7 +704,11 @@
 
         <div class="mov-layout">
           <div style="flex:1">
-            <div class="month-tabs" id="month-tabs"></div>
+            <div style="display:flex; align-items:stretch;">
+              <button class="month-tabs-arrow left" onclick="rolarMeses(-1)" title="Meses anteriores">&#8249;</button>
+              <div class="month-tabs" id="month-tabs" style="flex:1;"></div>
+              <button class="month-tabs-arrow right" onclick="rolarMeses(1)" title="Meses seguintes">&#8250;</button>
+            </div>
             <div class="mov-table-wrap">
               <table>
                 <thead>
@@ -747,6 +769,23 @@
         </div>
       </div>
 
+      <!-- ============ AVISOS (gestor) ============ -->
+      <div id="view-avisos" class="view hidden">
+        <div class="page-title">Avisos</div>
+        <div class="breadcrumb"><a href="#">Home</a> / <span class="current">Avisos</span></div>
+
+        <div class="toolbar-row">
+          <button class="btn primary" style="margin-left:auto" onclick="novoAviso()">+ Novo aviso</button>
+        </div>
+
+        <div class="card">
+          <table>
+            <thead><tr><th>Assunto</th><th>Destinatários</th><th>Data</th><th>Ações</th></tr></thead>
+            <tbody id="avisos-lista-table"></tbody>
+          </table>
+        </div>
+      </div>
+
       <div id="view-financeiro" class="view hidden">
         <div class="page-title">Financeiro</div>
         <div class="breadcrumb"><a href="#">Home</a> / <span class="current">Financeiro</span></div>
@@ -782,7 +821,7 @@
 
         <div class="card">
           <table>
-            <thead><tr><th style="width:32px;"><input type="checkbox" id="fin-select-all" onchange="toggleSelecionarTodasFaturas(this)"></th><th>Competência</th><th>Vencimento</th><th>Valor</th><th>Status</th><th>Nota fiscal</th><th>Boleto</th></tr></thead>
+            <thead><tr><th style="width:32px;"><input type="checkbox" id="fin-select-all" onchange="toggleSelecionarTodasFaturas(this)"></th><th>Competência</th><th>Vencimento</th><th>Valor</th><th>Status</th><th>Fatura</th><th>Nota fiscal</th><th>Boleto</th></tr></thead>
             <tbody id="financeiro-table"></tbody>
           </table>
         </div>
@@ -864,14 +903,46 @@
   </div>
 </div>
 
+<!-- ===================== MODAL NOVO AVISO ===================== -->
+<div id="modal-novo-aviso" class="hidden" style="position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:200; display:flex; align-items:center; justify-content:center;">
+  <div class="card form-card" style="width:480px; max-width:90vw;">
+    <div class="form-section-title">Novo aviso</div>
+    <div class="form-field" style="margin-bottom:12px;">
+      <label style="display:block;font-size:11.5px;color:var(--text-soft);margin-bottom:5px;">Assunto</label>
+      <input type="text" id="aviso-assunto" style="width:100%;">
+    </div>
+    <div class="form-field" style="margin-bottom:14px;">
+      <label style="display:block;font-size:11.5px;color:var(--text-soft);margin-bottom:5px;">Mensagem</label>
+      <textarea id="aviso-conteudo" rows="5" style="width:100%; font-family:inherit; font-size:13.5px; padding:9px 12px; border:1px solid #D6D6D6; border-radius:4px;"></textarea>
+    </div>
+    <div class="form-field" style="margin-bottom:12px;">
+      <label style="display:block;font-size:11.5px;color:var(--text-soft);margin-bottom:5px;">Destinatárias</label>
+      <select id="aviso-destino" style="width:100%;" onchange="aoMudarDestinoAviso()">
+        <option value="todas">Todas as clínicas</option>
+        <option value="especificas">Selecionar clínicas específicas</option>
+      </select>
+    </div>
+    <div class="form-field hidden" id="aviso-clinicas-campo" style="margin-bottom:14px;">
+      <label style="display:block;font-size:11.5px;color:var(--text-soft);margin-bottom:5px;">Clínicas</label>
+      <div id="aviso-clinicas-lista" style="max-height:160px; overflow-y:auto; border:1px solid #D6D6D6; border-radius:4px; padding:8px;"></div>
+    </div>
+    <div id="aviso-erro" class="hidden" style="color:var(--red); font-size:12px; margin-bottom:10px;"></div>
+    <div style="display:flex; gap:10px; justify-content:flex-end;">
+      <button class="btn" onclick="fecharModalNovoAviso()">Cancelar</button>
+      <button class="btn primary" id="aviso-enviar-btn" onclick="confirmarEnviarAviso()">Enviar aviso</button>
+    </div>
+  </div>
+</div>
+
 <!-- ===================== MODAL GERENCIAR ACESSOS ===================== -->
 <div id="modal-acessos" class="hidden" style="position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:200; display:flex; align-items:center; justify-content:center;">
-  <div class="card form-card" style="width:460px; max-width:90vw;">
+  <div class="card form-card" style="width:560px; max-width:90vw;">
     <div class="form-section-title">Gerenciar acessos ao portal</div>
 
     <div class="profile-tabs" style="margin-bottom:16px;">
       <button class="profile-tab active" id="acessos-tab-criar" onclick="setAcessosTab('criar')">Criar acesso</button>
       <button class="profile-tab" id="acessos-tab-resetar" onclick="setAcessosTab('resetar')">Resetar senha</button>
+      <button class="profile-tab" id="acessos-tab-consultar" onclick="setAcessosTab('consultar')">Consultar</button>
     </div>
 
     <div id="acessos-painel-criar">
@@ -908,6 +979,18 @@
       <div style="display:flex; gap:10px; justify-content:flex-end;">
         <button class="btn" onclick="fecharModalAcessos()">Cancelar</button>
         <button class="btn primary" id="acessos-reset-btn" onclick="confirmarResetarSenha()">Resetar senha</button>
+      </div>
+    </div>
+
+    <div id="acessos-painel-consultar" class="hidden">
+      <div style="max-height:340px; overflow-y:auto;">
+        <table>
+          <thead><tr><th>Login</th><th>Tipo</th><th>Clínica</th><th>Status</th><th>Ações</th></tr></thead>
+          <tbody id="acessos-lista-table"></tbody>
+        </table>
+      </div>
+      <div style="display:flex; justify-content:flex-end; margin-top:14px;">
+        <button class="btn" onclick="fecharModalAcessos()">Fechar</button>
       </div>
     </div>
   </div>
@@ -1133,7 +1216,8 @@ async function entrarNoPortal() {
   document.getElementById('th-acoes-gestor').classList.toggle('hidden', !isGestor);
   document.getElementById('inativar-hint').classList.toggle('hidden', !isGestor);
   document.getElementById('gestor-clinica-selector').classList.toggle('hidden', !isGestor);
-  document.getElementById('nav-profissionais').classList.toggle('hidden', !isGestor);
+  // Menu "Profissionais" removido — o corpo clínico já aparece embutido no Cadastro.
+  document.getElementById('nav-avisos').classList.toggle('hidden', !isGestor);
   document.getElementById('icon-gerenciar-acessos').classList.toggle('hidden', !isGestor);
 
   if (isGestor) {
@@ -1238,7 +1322,13 @@ async function carregarTudoDaClinica() {
 
   await Promise.all([
     carregarMembros(),
-    carregarSolicitacoes()
+    carregarSolicitacoes(),
+    (async () => {
+      try {
+        const r = await rpc('fn_listar_avisos', { p_token: sessao.token });
+        if (r.ok) { avisosCache = r.avisos || []; atualizarBadgeAvisos(); }
+      } catch (e) { /* badge de avisos é só um detalhe visual, não trava a entrada */ }
+    })()
   ]);
   await carregarMovimentacaoBruta();
   renderOverview(); // agora com movimentacoesBrutas carregado, recalcula com valores reais
@@ -1450,8 +1540,11 @@ function fecharModalAcessos() {
 function setAcessosTab(aba) {
   document.getElementById('acessos-tab-criar').classList.toggle('active', aba === 'criar');
   document.getElementById('acessos-tab-resetar').classList.toggle('active', aba === 'resetar');
+  document.getElementById('acessos-tab-consultar').classList.toggle('active', aba === 'consultar');
   document.getElementById('acessos-painel-criar').classList.toggle('hidden', aba !== 'criar');
   document.getElementById('acessos-painel-resetar').classList.toggle('hidden', aba !== 'resetar');
+  document.getElementById('acessos-painel-consultar').classList.toggle('hidden', aba !== 'consultar');
+  if (aba === 'consultar') carregarListaUsuarios();
 }
 function aoMudarTipoAcessoNovo() {
   const tipo = document.getElementById('acessos-novo-tipo').value;
@@ -1503,6 +1596,48 @@ async function confirmarResetarSenha() {
     erroEl.classList.remove('hidden');
   } finally {
     btn.disabled = false;
+  }
+}
+
+let listaUsuariosAcesso = [];
+
+async function carregarListaUsuarios() {
+  const tbody = document.getElementById('acessos-lista-table');
+  tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state">Carregando...</div></td></tr>`;
+  try {
+    const r = await rpc('fn_listar_usuarios', { p_token: sessao.token });
+    if (!r.ok) { tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state">${r.erro || 'Erro ao listar acessos.'}</div></td></tr>`; return; }
+    listaUsuariosAcesso = r.usuarios || [];
+  } catch (e) {
+    tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state">Erro de conexão: ${e.message}</div></td></tr>`;
+    return;
+  }
+  renderListaUsuarios();
+}
+
+function renderListaUsuarios() {
+  document.getElementById('acessos-lista-table').innerHTML = listaUsuariosAcesso.map(u => `
+    <tr>
+      <td>${u.login}</td>
+      <td>${u.tipo === 'gestor' ? 'Gestor' : 'Clínica'}</td>
+      <td>${u.clinica_nome || '--'}</td>
+      <td>
+        ${u.ativo ? '<span class="pill ok">Ativo</span>' : '<span class="pill neutral">Inativo</span>'}
+        ${u.precisa_trocar_senha ? '<div style="font-size:10.5px;color:var(--text-faint);margin-top:3px;">precisa trocar senha</div>' : ''}
+      </td>
+      <td><span class="action-link danger" onclick="excluirUsuario('${u.id}', '${u.login}')">Excluir</span></td>
+    </tr>
+  `).join('') || `<tr><td colspan="5"><div class="empty-state">Nenhuma conta cadastrada.</div></td></tr>`;
+}
+
+async function excluirUsuario(id, login) {
+  if (!confirm(`Excluir o acesso de "${login}" definitivamente? Essa pessoa não vai mais conseguir entrar no portal.`)) return;
+  try {
+    const r = await rpc('fn_excluir_usuario', { p_token: sessao.token, p_usuario_id: id });
+    if (!r.ok) { alert(r.erro || 'Não foi possível excluir.'); return; }
+    await carregarListaUsuarios();
+  } catch (e) {
+    alert('Erro de conexão: ' + e.message);
   }
 }
 
@@ -1848,6 +1983,18 @@ function renderMonthTabs() {
       ${m.label}${m.sub ? '<span class="sub">' + m.sub + '</span>' : ''}
     </button>
   `).join('');
+
+  // Rola até a aba ativa ficar visível (útil sobretudo pra "ABERTA", que
+  // fica sempre por último e some da vista quando tem muitos meses).
+  const ativa = wrap.querySelector('.month-tab.active');
+  if (ativa) ativa.scrollIntoView({ behavior: 'smooth', inline: 'nearest', block: 'nearest' });
+}
+
+// Setas da barra laranja: rola meio "bloco" de abas por clique, em vez de
+// depender só do gesto de arrastar/scroll do mouse.
+function rolarMeses(direcao) {
+  const wrap = document.getElementById('month-tabs');
+  wrap.scrollBy({ left: direcao * (wrap.clientWidth * 0.7), behavior: 'smooth' });
 }
 
 function selectMonth(key) {
@@ -1949,11 +2096,9 @@ function recalcularPeriodosEexibir() {
   });
 
   const fechadasOrdenadas = Object.keys(grupos).filter(k => k !== 'aberto').sort();
-  const ultimasChaves = grupos['aberto']
-    ? [...fechadasOrdenadas.slice(-4), 'aberto']
-    : fechadasOrdenadas.slice(-5);
+  const todasAsChaves = grupos['aberto'] ? [...fechadasOrdenadas, 'aberto'] : fechadasOrdenadas;
 
-  meses = ultimasChaves.map(k => {
+  meses = todasAsChaves.map(k => {
     if (k === 'aberto') {
       const membro = fCod !== 'todos' ? membros.find(m => String(m.cod_usuario) === String(fCod)) : null;
       const dia = (membro && membro.dia_fechamento_cache) || DIA_FECHAMENTO_PADRAO;
@@ -2065,7 +2210,6 @@ function renderMovimentacao(linhasBrutas) {
     </div>
   `;
 
-  if (meses.length && mesAtivo === meses[meses.length - 1].key) atualizarMetricasHome();
 }
 
 /* =====================================================================
@@ -2078,15 +2222,19 @@ function renderOverview() {
   // Soma os valores do período EM ABERTO (o mesmo que aparece na aba "ABERTA"
   // de Movimentações) por médico, separando fatura de locação e nota fiscal.
   // Só considera linhas sem `datavencimentofatura` (ainda não fechadas).
+  // IMPORTANTE: isso sempre soma TODOS os médicos da clínica, independente
+  // de qualquer filtro que esteja selecionado na tela de Movimentações —
+  // os dois cálculos são independentes de propósito.
   const totaisPorMedico = {};
+  let totalFaturaGeral = 0, totalNfGeral = 0;
   movimentacoesBrutas.forEach(r => {
     if (r.datavencimentofatura) return;
     const cod = String(r.codusuario);
     if (!totaisPorMedico[cod]) totaisPorMedico[cod] = { fatura: 0, nf: 0 };
     const tipo = mapearDocumento(r.codmodalidadefiscal);
     const valor = parseFloat(r.valormovimentacao || 0);
-    if (tipo === 'fatura_locacao') totaisPorMedico[cod].fatura += valor;
-    else if (tipo === 'nota_fiscal') totaisPorMedico[cod].nf += valor;
+    if (tipo === 'fatura_locacao') { totaisPorMedico[cod].fatura += valor; totalFaturaGeral += valor; }
+    else if (tipo === 'nota_fiscal') { totaisPorMedico[cod].nf += valor; totalNfGeral += valor; }
   });
 
   document.getElementById('overview-table').innerHTML = ativos.slice(0, 5).map(m => {
@@ -2105,12 +2253,10 @@ function renderOverview() {
 
   document.getElementById('metric-medicos-ativos').textContent = ativos.length;
   document.getElementById('metric-medicos-sub').textContent = `de ${membros.length} cadastrados`;
-}
 
-function atualizarMetricasHome() {
-  document.getElementById('metric-fatura-locacao').textContent = formatarMoeda(ultimoDocTotais.fatura);
-  document.getElementById('metric-nota-fiscal').textContent = formatarMoeda(ultimoDocTotais.nf);
-  document.getElementById('metric-total-mes').textContent = formatarMoeda(ultimoDocTotais.fatura + ultimoDocTotais.nf);
+  document.getElementById('metric-fatura-locacao').textContent = formatarMoeda(totalFaturaGeral);
+  document.getElementById('metric-nota-fiscal').textContent = formatarMoeda(totalNfGeral);
+  document.getElementById('metric-total-mes').textContent = formatarMoeda(totalFaturaGeral + totalNfGeral);
 }
 
 // Faturas (Financeiro) ainda não tem tabela/rotina real — mantido como
@@ -2162,11 +2308,40 @@ function renderFinanceiro() {
       <td>${f.vencimento}</td>
       <td class="val">${f.valor}</td>
       <td>${statusFaturaPill(f.status)}</td>
+      <td>${celulaAnexoFatura(f)}</td>
       <td><span class="download-link">Baixar NF ↓</span></td>
       <td><span class="download-link">Baixar boleto ↓</span></td>
     </tr>
-  `).join('') || `<tr><td colspan="7"><div class="empty-state">Nenhuma fatura para os filtros selecionados.</div></td></tr>`;
+  `).join('') || `<tr><td colspan="8"><div class="empty-state">Nenhuma fatura para os filtros selecionados.</div></td></tr>`;
   document.getElementById('fin-select-all').checked = false;
+}
+
+// ATENÇÃO: como Financeiro ainda não tem tabela/rotina real no banco (é tudo
+// mockado), esse anexo só existe na memória da sessão — some se recarregar a
+// página. Quando existir uma tabela de faturas de verdade, isso deve virar
+// um upload pra um Storage (ex: bucket do Supabase) salvo por fatura.
+let anexosFaturas = {};
+
+function celulaAnexoFatura(f) {
+  const anexo = anexosFaturas[f.id];
+  if (anexo) {
+    return `<a href="${anexo.url}" target="_blank" class="download-link">${anexo.nome}</a> <span class="action-link danger" onclick="removerAnexoFatura('${f.id}')">remover</span>`;
+  }
+  return `<label class="download-link" style="cursor:pointer;">Anexar ↑<input type="file" style="display:none" onchange="anexarFatura('${f.id}', this)"></label>`;
+}
+
+function anexarFatura(id, input) {
+  const arquivo = input.files[0];
+  if (!arquivo) return;
+  const url = URL.createObjectURL(arquivo);
+  anexosFaturas[id] = { nome: arquivo.name, url };
+  renderFinanceiro();
+}
+
+function removerAnexoFatura(id) {
+  if (anexosFaturas[id]) URL.revokeObjectURL(anexosFaturas[id].url);
+  delete anexosFaturas[id];
+  renderFinanceiro();
 }
 
 function toggleSelecionarTodasFaturas(checkbox) {
@@ -2280,7 +2455,7 @@ function renderTickets() {
       <div class="ticket-item ${t.id === solicitacaoAtivaId ? 'active' : ''}" onclick="abrirTicket('${t.id}')">
         <div class="ticket-top">
           <span class="ticket-subject">${t.assunto}</span>
-          <span class="status-tag ${t.status}">${t.status}</span>
+          <span class="status-tag ${t.status}">${statusSolicitacaoLabel(t.status)}</span>
         </div>
         <div class="ticket-meta">${formatarDataHora(t.created_at)}</div>
       </div>
@@ -2314,16 +2489,23 @@ async function carregarMensagens(id) {
 // os lados da conversa). Se os valores reais forem outros (ex: um login ou
 // e-mail), é só me passar um exemplo de fn_listar_mensagens que eu ajusto
 // essa comparação.
+function statusSolicitacaoLabel(status) {
+  if (status === 'aberta') return 'Aberta';
+  if (status === 'em_andamento') return 'Em andamento';
+  if (status === 'resolvida') return 'Resolvida';
+  return status;
+}
+
 function renderChat(t, mensagens) {
   const wrap = document.getElementById('ticket-chat');
-  const podeEnviar = t.status !== 'encerrado';
-  const podeEncerrar = sessao.tipo === 'gestor' && t.status !== 'encerrado';
+  const podeEnviar = t.status !== 'resolvida';
+  const podeEncerrar = sessao.tipo === 'gestor' && t.status !== 'resolvida';
   wrap.innerHTML = `
     <div class="ticket-chat-header">
       <div class="ticket-chat-subject">${t.assunto}</div>
       <div class="ticket-chat-tags">
-        <span class="status-tag ${t.status}">${t.status}</span> aberto em ${formatarDataHora(t.created_at)}
-        ${podeEncerrar ? `<span class="action-link" style="margin-left:10px" onclick="encerrarSolicitacao('${t.id}')">Encerrar chamado</span>` : ''}
+        <span class="status-tag ${t.status}">${statusSolicitacaoLabel(t.status)}</span> aberto em ${formatarDataHora(t.created_at)}
+        ${podeEncerrar ? `<span class="action-link" style="margin-left:10px" onclick="encerrarSolicitacao('${t.id}')">Marcar como resolvida</span>` : ''}
       </div>
     </div>
     <div class="chat-messages" id="chat-messages-box">
@@ -2336,7 +2518,7 @@ function renderChat(t, mensagens) {
     </div>
     <div class="chat-input-row">
       <span class="attach-btn" title="Anexo ainda não integrado ao banco">&#128206;</span>
-      <input type="text" id="chat-input-texto" placeholder="${podeEnviar ? 'Escreva uma mensagem...' : 'Chamado encerrado'}" ${podeEnviar ? '' : 'disabled'}
+      <input type="text" id="chat-input-texto" placeholder="${podeEnviar ? 'Escreva uma mensagem...' : 'Chamado resolvido'}" ${podeEnviar ? '' : 'disabled'}
         onkeydown="if(event.key==='Enter') enviarMensagem('${t.id}')">
       <button class="btn primary" style="padding:9px 16px" ${podeEnviar ? '' : 'disabled'} onclick="enviarMensagem('${t.id}')">Enviar</button>
     </div>
@@ -2377,10 +2559,10 @@ function notificarPorEmail(tipo, assunto, texto) {
 }
 
 async function encerrarSolicitacao(id) {
-  if (!confirm('Encerrar este chamado?')) return;
+  if (!confirm('Marcar este chamado como resolvido?')) return;
   try {
-    const r = await rpc('fn_alterar_status_solicitacao', { p_token: sessao.token, p_solicitacao_id: id, p_status: 'encerrado' });
-    if (!r.ok) { alert(r.erro || 'Não foi possível encerrar o chamado.'); return; }
+    const r = await rpc('fn_alterar_status_solicitacao', { p_token: sessao.token, p_solicitacao_id: id, p_status: 'resolvida' });
+    if (!r.ok) { alert(r.erro || 'Não foi possível marcar como resolvido.'); return; }
     await carregarSolicitacoes();
   } catch (e) {
     alert('Erro de conexão: ' + e.message);
@@ -2436,8 +2618,12 @@ async function enviarNovaSolicitacao() {
    NAVEGAÇÃO / UI GERAL (sem mudança de lógica de negócio)
    ===================================================================== */
 
+let avisosCache = [];
+
 function toggleAvisos() {
-  document.getElementById('avisos-panel').classList.toggle('hidden');
+  const panel = document.getElementById('avisos-panel');
+  panel.classList.toggle('hidden');
+  if (!panel.classList.contains('hidden')) carregarAvisosSino();
 }
 document.addEventListener('click', function (e) {
   const panel = document.getElementById('avisos-panel');
@@ -2447,6 +2633,132 @@ document.addEventListener('click', function (e) {
   }
 });
 
+async function carregarAvisosSino() {
+  const panel = document.getElementById('avisos-panel');
+  panel.innerHTML = '<div class="avisos-header">Avisos da Livance</div><div class="empty-chat" style="padding:16px;">Carregando...</div>';
+  try {
+    const r = await rpc('fn_listar_avisos', { p_token: sessao.token });
+    if (!r.ok) {
+      panel.innerHTML = `<div class="avisos-header">Avisos da Livance</div><div class="empty-chat" style="padding:16px;">${r.erro || 'Erro ao carregar avisos.'}</div>`;
+      return;
+    }
+    avisosCache = r.avisos || [];
+    atualizarBadgeAvisos();
+    panel.innerHTML = '<div class="avisos-header">Avisos da Livance</div>' + (
+      avisosCache.slice(0, 8).map(a => `
+        <div class="aviso-item">
+          <div class="aviso-title">${a.assunto}</div>
+          <div class="aviso-text">${a.conteudo}</div>
+          <div class="aviso-date">${formatarDataHora(a.created_at)}</div>
+        </div>
+      `).join('') || '<div class="empty-chat" style="padding:16px;">Nenhum aviso por aqui ainda.</div>'
+    );
+  } catch (e) {
+    panel.innerHTML = `<div class="avisos-header">Avisos da Livance</div><div class="empty-chat" style="padding:16px;">Erro de conexão: ${e.message}</div>`;
+  }
+}
+
+function atualizarBadgeAvisos() {
+  const badge = document.getElementById('avisos-count');
+  badge.textContent = avisosCache.length;
+  badge.classList.toggle('hidden', avisosCache.length === 0);
+}
+
+/* =====================================================================
+   AVISOS (gestor cria/histórico; clínica só visualiza pelo sino)
+   ===================================================================== */
+
+async function carregarListaAvisos() {
+  const tbody = document.getElementById('avisos-lista-table');
+  tbody.innerHTML = `<tr><td colspan="4"><div class="empty-state">Carregando...</div></td></tr>`;
+  try {
+    const r = await rpc('fn_listar_avisos', { p_token: sessao.token });
+    if (!r.ok) { tbody.innerHTML = `<tr><td colspan="4"><div class="empty-state">${r.erro || 'Erro ao listar avisos.'}</div></td></tr>`; return; }
+    avisosCache = r.avisos || [];
+    atualizarBadgeAvisos();
+  } catch (e) {
+    tbody.innerHTML = `<tr><td colspan="4"><div class="empty-state">Erro de conexão: ${e.message}</div></td></tr>`;
+    return;
+  }
+  renderListaAvisosGestor();
+}
+
+function renderListaAvisosGestor() {
+  document.getElementById('avisos-lista-table').innerHTML = avisosCache.map(a => `
+    <tr>
+      <td><div class="doc-cell">${a.assunto}<span class="crm">${(a.conteudo || '').slice(0, 90)}${(a.conteudo || '').length > 90 ? '…' : ''}</span></div></td>
+      <td>${a.todas_clinicas ? 'Todas as clínicas' : ((a.clinicas || []).join(', ') || '--')}</td>
+      <td>${formatarDataHora(a.created_at)}</td>
+      <td><span class="action-link danger" onclick="excluirAviso('${a.id}')">Excluir</span></td>
+    </tr>
+  `).join('') || `<tr><td colspan="4"><div class="empty-state">Nenhum aviso enviado ainda.</div></td></tr>`;
+}
+
+function novoAviso() {
+  document.getElementById('aviso-assunto').value = '';
+  document.getElementById('aviso-conteudo').value = '';
+  document.getElementById('aviso-destino').value = 'todas';
+  document.getElementById('aviso-erro').classList.add('hidden');
+  document.getElementById('aviso-clinicas-lista').innerHTML = clinicasGestor.map(c => `
+    <label style="display:block; font-size:13px; padding:3px 0;">
+      <input type="checkbox" class="aviso-clinica-check" value="${c.id}"> ${c.razao_social}
+    </label>
+  `).join('');
+  aoMudarDestinoAviso();
+  document.getElementById('modal-novo-aviso').classList.remove('hidden');
+}
+function fecharModalNovoAviso() {
+  document.getElementById('modal-novo-aviso').classList.add('hidden');
+}
+function aoMudarDestinoAviso() {
+  const destino = document.getElementById('aviso-destino').value;
+  document.getElementById('aviso-clinicas-campo').classList.toggle('hidden', destino !== 'especificas');
+}
+
+async function confirmarEnviarAviso() {
+  const assunto = document.getElementById('aviso-assunto').value.trim();
+  const conteudo = document.getElementById('aviso-conteudo').value.trim();
+  const destino = document.getElementById('aviso-destino').value;
+  const erroEl = document.getElementById('aviso-erro');
+  erroEl.classList.add('hidden');
+
+  if (!assunto || !conteudo) { erroEl.textContent = 'Preencha assunto e mensagem.'; erroEl.classList.remove('hidden'); return; }
+
+  let clinicaIds = null;
+  if (destino === 'especificas') {
+    clinicaIds = [...document.querySelectorAll('.aviso-clinica-check:checked')].map(c => c.value);
+    if (clinicaIds.length === 0) { erroEl.textContent = 'Selecione ao menos uma clínica.'; erroEl.classList.remove('hidden'); return; }
+  }
+
+  const btn = document.getElementById('aviso-enviar-btn');
+  btn.disabled = true;
+  try {
+    const r = await rpc('fn_criar_aviso', {
+      p_token: sessao.token, p_assunto: assunto, p_conteudo: conteudo,
+      p_todas_clinicas: destino === 'todas', p_clinica_ids: clinicaIds
+    });
+    if (!r.ok) { erroEl.textContent = r.erro || 'Não foi possível enviar o aviso.'; erroEl.classList.remove('hidden'); return; }
+    fecharModalNovoAviso();
+    await carregarListaAvisos();
+  } catch (e) {
+    erroEl.textContent = 'Erro de conexão: ' + e.message;
+    erroEl.classList.remove('hidden');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function excluirAviso(id) {
+  if (!confirm('Excluir este aviso? Ele deixa de aparecer pra quem recebeu.')) return;
+  try {
+    const r = await rpc('fn_excluir_aviso', { p_token: sessao.token, p_aviso_id: id });
+    if (!r.ok) { alert(r.erro || 'Não foi possível excluir.'); return; }
+    await carregarListaAvisos();
+  } catch (e) {
+    alert('Erro de conexão: ' + e.message);
+  }
+}
+
 function setView(view) {
   document.querySelectorAll('.view').forEach(v => v.classList.add('hidden'));
   document.getElementById('view-' + view).classList.remove('hidden');
@@ -2455,6 +2767,8 @@ function setView(view) {
   if (view === 'movimentacao') recalcularPeriodosEexibir();
   if (view === 'cadastro') abrirTelaCadastro();
   if (view === 'relatorios') abrirRelatorios();
+  if (view === 'avisos') carregarListaAvisos();
+  if (view === 'overview') renderOverview();
 }
 
 function abrirSolicitacaoCnpj() {
