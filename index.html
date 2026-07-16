@@ -601,6 +601,7 @@
             </div>
           </div>
           <div class="toolbar-row">
+            <button class="btn" onclick="sincronizarTodasComOmie()">Atualizar todas com a Omie</button>
             <button class="btn primary" style="margin-left:auto" onclick="novaClinica()">+ Nova clínica</button>
           </div>
           <div class="card">
@@ -629,6 +630,15 @@
             </div>
             <div id="cad-erro" class="hidden" style="color:var(--red); font-size:12px; margin-top:12px;"></div>
             <button class="btn primary" id="cad-salvar-btn" style="margin-top:18px" onclick="salvarClinica()">Salvar alterações</button>
+          </div>
+
+          <div class="card form-card" id="cad-omie-card">
+            <div class="form-section-title">Integração Omie (faturas/boletos)</div>
+            <p class="gestor-hint" style="margin-bottom:10px;">
+              Código do cliente na Omie: <b id="cad-omie-codigo">--</b>
+            </p>
+            <button class="btn" id="cad-omie-sincronizar-btn" onclick="sincronizarComOmie()">Sincronizar com Omie</button>
+            <div id="cad-omie-erro" class="hidden" style="color:var(--red); font-size:12px; margin-top:10px;"></div>
           </div>
 
           <div class="card form-card" id="cadastro-membro-form-card">
@@ -790,6 +800,7 @@
       <div id="view-financeiro" class="view hidden">
         <div class="page-title">Financeiro</div>
         <div class="breadcrumb"><a href="#">Home</a> / <span class="current">Financeiro</span></div>
+        <div id="financeiro-aviso-fonte"></div>
 
         <div class="filter-row">
           <div class="filter-field">
@@ -1026,13 +1037,17 @@ let movimentacoesBrutas = [];  // linhas brutas da clínica atual (antes de filt
 let ultimoDocTotais = { fatura: 0, nf: 0 };
 let perfilAtivo = 'clinica';
 
-// Faturas e avisos ainda não têm tabela/rotina no Supabase — mantidos como
-// protótipo visual até existir uma fonte de dados real (ver aviso no chat).
-const faturas = [
+// Faturas: começam com esse mock (protótipo visual), mas são substituídas
+// por dado real da Omie assim que a clínica tiver o código de cliente
+// sincronizado (ver carregarFaturasReaisOmie). Enquanto não sincronizar,
+// continua mostrando esse exemplo pra tela nunca ficar vazia/quebrada.
+let faturas = [
   { id: 'f1', competencia: 'Julho/2026', vencimento: '10/06/2026', valor: 'R$ 3.420,00', status: 'vencido' },
   { id: 'f2', competencia: 'Junho/2026', vencimento: '10/07/2026', valor: 'R$ 24.180,00', status: 'aberto' },
   { id: 'f3', competencia: 'Maio/2026', vencimento: '10/06/2026', valor: 'R$ 21.640,00', status: 'pago' },
 ];
+let faturasOmieCarregadas = false;
+let faturasSaoReais = false;
 
 /* =====================================================================
    HELPERS DE REDE
@@ -1087,6 +1102,22 @@ async function chamarAppsScript(payload) {
     // sem precisar abrir os Logs da Edge Function no Supabase.
     throw new Error('resposta não é JSON (HTTP ' + resp.status + '): ' + texto.slice(0, 200));
   }
+}
+
+// Chama a Edge Function "omie-proxy" (integração com a Omie — faturas,
+// boletos, dados de cliente). Mesmo padrão de proxy que já usamos pro
+// Apps Script, só que pra uma API diferente.
+async function chamarOmieProxy(payload) {
+  const resp = await fetch(`${SUPABASE_URL}/functions/v1/omie-proxy`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${SUPABASE_ANON_KEY}`
+    },
+    body: JSON.stringify(payload)
+  });
+  return resp.json();
 }
 
 function formatarMoeda(v) {
@@ -1334,6 +1365,7 @@ async function carregarTudoDaClinica() {
   await carregarMovimentacaoBruta();
   renderOverview(); // agora com movimentacoesBrutas carregado, recalcula com valores reais
 
+  faturasOmieCarregadas = false; // força buscar de novo na Omie quando abrir Financeiro dessa clínica
   renderOverdueBanner();
   renderFinanceiro();
 }
@@ -1815,8 +1847,93 @@ async function abrirEdicaoClinica(clinicaId) {
   document.getElementById('cad-tributacao').readOnly = !isGestor;
   document.getElementById('cad-email').readOnly = !isGestor;
   document.getElementById('cad-salvar-btn').classList.toggle('hidden', !isGestor);
+  document.getElementById('cad-omie-sincronizar-btn').classList.toggle('hidden', !isGestor);
+  document.getElementById('cad-omie-erro').classList.add('hidden');
 
+  await carregarCodigoClienteOmie(clinicaId);
   await carregarMembrosClinicaEditando(clinicaId);
+}
+
+async function carregarCodigoClienteOmie(clinicaId) {
+  const el = document.getElementById('cad-omie-codigo');
+  el.textContent = '...';
+  try {
+    const r = await rpc('fn_obter_codigo_cliente_omie', { p_token: sessao.token, p_clinica_id: clinicaId });
+    el.textContent = (r.ok && r.codigo_cliente_omie) ? r.codigo_cliente_omie : 'não sincronizado ainda';
+  } catch (e) {
+    el.textContent = 'erro ao carregar';
+  }
+}
+
+// Lógica pura de sincronização (sem mexer na tela) — reutilizada pelo botão
+// individual, pela criação de clínica nova e pelo "atualizar todas".
+async function tentarSincronizarOmie(clinicaId, cnpjBruto) {
+  const cnpj = (cnpjBruto || '').replace(/\D/g, '');
+  if (!cnpj) return { ok: false, motivo: 'sem_cnpj' };
+
+  try {
+    const r = await chamarOmieProxy({ acao: 'buscar_cliente', cnpj });
+    const cliente = r.ok && r.resultado && r.resultado.clientes_cadastro_resumido && r.resultado.clientes_cadastro_resumido[0];
+    if (!cliente || !cliente.codigo_cliente) return { ok: false, motivo: 'nao_encontrado' };
+
+    const salvar = await rpc('fn_atualizar_codigo_cliente_omie', {
+      p_token: sessao.token, p_clinica_id: clinicaId, p_codigo_cliente: cliente.codigo_cliente
+    });
+    if (!salvar.ok) return { ok: false, motivo: 'erro_salvar', erro: salvar.erro };
+
+    return { ok: true, codigo: cliente.codigo_cliente };
+  } catch (e) {
+    return { ok: false, motivo: 'erro_conexao', erro: e.message };
+  }
+}
+
+function mensagemErroOmie(r) {
+  if (r.motivo === 'sem_cnpj') return 'Essa clínica não tem CNPJ cadastrado.';
+  if (r.motivo === 'nao_encontrado') return '⚠ Não identificamos essa clínica cadastrada na Omie. Faça o cadastro dela lá e depois volte aqui pra sincronizar.';
+  return r.erro || 'Não foi possível sincronizar com a Omie.';
+}
+
+async function sincronizarTodasComOmie() {
+  if (clinicasGestor.length === 0) { alert('Nenhuma clínica cadastrada ainda.'); return; }
+  if (!confirm(`Sincronizar as ${clinicasGestor.length} clínica(s) com a Omie? Pode levar alguns segundos, uma de cada vez.`)) return;
+
+  let sucesso = 0, semCnpj = 0, naoEncontradas = 0, comErro = 0;
+  for (const c of clinicasGestor) {
+    const r = await tentarSincronizarOmie(c.id, c.cnpj);
+    if (r.ok) sucesso++;
+    else if (r.motivo === 'sem_cnpj') semCnpj++;
+    else if (r.motivo === 'nao_encontrado') naoEncontradas++;
+    else comErro++;
+  }
+
+  alert(
+    `Sincronização concluída:\n\n` +
+    `✓ Sincronizadas: ${sucesso}\n` +
+    `⚠ Não encontradas na Omie: ${naoEncontradas}\n` +
+    (semCnpj ? `— Sem CNPJ cadastrado: ${semCnpj}\n` : '') +
+    (comErro ? `✗ Com erro de conexão: ${comErro}\n` : '')
+  );
+  await carregarClinicasLista();
+}
+
+async function sincronizarComOmie() {
+  const cnpj = document.getElementById('cad-cnpj').value;
+  const erroEl = document.getElementById('cad-omie-erro');
+  erroEl.classList.add('hidden');
+
+  const btn = document.getElementById('cad-omie-sincronizar-btn');
+  btn.disabled = true;
+  btn.textContent = 'Buscando na Omie...';
+
+  const r = await tentarSincronizarOmie(clinicaEditandoId, cnpj);
+  if (!r.ok) {
+    erroEl.textContent = mensagemErroOmie(r);
+    erroEl.classList.remove('hidden');
+  } else {
+    await carregarCodigoClienteOmie(clinicaEditandoId);
+  }
+  btn.disabled = false;
+  btn.textContent = 'Sincronizar com Omie';
 }
 
 function voltarListaClinicas() {
@@ -1950,6 +2067,12 @@ async function salvarNovaClinica() {
     });
     if (!r.ok) { erroEl.textContent = r.erro || 'Não foi possível criar a clínica.'; erroEl.classList.remove('hidden'); return; }
     fecharModalNovaClinica();
+
+    const sinc = await tentarSincronizarOmie(r.clinica_id, cnpj);
+    if (!sinc.ok) {
+      alert('Clínica criada com sucesso!\n\n' + mensagemErroOmie(sinc));
+    }
+
     await carregarClinicasLista();
   } catch (e) {
     erroEl.textContent = 'Erro de conexão: ' + e.message;
@@ -2299,9 +2422,102 @@ function faturasFiltradas() {
   });
 }
 
+/* =====================================================================
+   INTEGRAÇÃO OMIE (faturas reais)
+   ===================================================================== */
+
+async function abrirFinanceiro() {
+  if (!faturasOmieCarregadas) await carregarFaturasReaisOmie();
+  renderOverdueBanner();
+  renderFinanceiro();
+}
+
+async function carregarFaturasReaisOmie() {
+  faturasOmieCarregadas = true; // marca como tentado — não fica tentando de novo a cada clique
+  try {
+    const cod = await rpc('fn_obter_codigo_cliente_omie', { p_token: sessao.token, p_clinica_id: sessao.clinicaId });
+    if (!cod.ok || !cod.codigo_cliente_omie) {
+      faturasSaoReais = false;
+      return; // clínica ainda não sincronizou — mantém o mock, sem erro pro usuário
+    }
+
+    const dataDe = '01/01/2026';
+    const daquiADoisMeses = new Date();
+    daquiADoisMeses.setMonth(daquiADoisMeses.getMonth() + 2);
+    const dataAte = String(daquiADoisMeses.getDate()).padStart(2, '0') + '/' +
+      String(daquiADoisMeses.getMonth() + 1).padStart(2, '0') + '/' + daquiADoisMeses.getFullYear();
+
+    const r = await chamarOmieProxy({
+      acao: 'listar_contas_receber',
+      codigo_cliente: cod.codigo_cliente_omie,
+      data_de: dataDe,
+      data_ate: dataAte
+    });
+
+    if (!r.ok || !r.contas) { faturasSaoReais = false; return; }
+
+    faturas = r.contas.map(c => ({
+      id: String(c.codigo_lancamento_omie),
+      competencia: formatarCompetenciaOmie(c.data_emissao),
+      vencimento: c.data_vencimento,
+      valor: formatarMoeda(c.valor_documento),
+      status: mapearStatusOmie(c.status_titulo),
+      codigoLancamentoOmie: c.codigo_lancamento_omie,
+      boletoGerado: !!(c.boleto && c.boleto.cGerado === 'S')
+    })).sort((a, b) => paraISOBR(b.vencimento).localeCompare(paraISOBR(a.vencimento)));
+
+    faturasSaoReais = true;
+  } catch (e) {
+    faturasSaoReais = false;
+    // silencioso — mantém o mock se a Omie falhar, não trava a tela
+  }
+}
+
+function formatarCompetenciaOmie(dataEmissaoBR) {
+  if (!dataEmissaoBR) return '--';
+  const partes = dataEmissaoBR.split('/');
+  if (partes.length !== 3) return dataEmissaoBR;
+  const nomesMes = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+  return nomesMes[parseInt(partes[1], 10) - 1] + '/' + partes[2];
+}
+
+// ATENÇÃO: só confirmamos o valor "ATRASADO" num teste real até agora.
+// Ajustar essa lista se aparecer um status_titulo diferente do esperado.
+function mapearStatusOmie(statusTitulo) {
+  const s = (statusTitulo || '').toUpperCase();
+  if (s.includes('PAGO') || s.includes('RECEBID') || s.includes('LIQUIDAD')) return 'pago';
+  if (s.includes('ATRASADO') || s.includes('VENCID')) return 'vencido';
+  return 'aberto';
+}
+
+// Busca o boleto (código de barras) na hora, só quando clicado — evita
+// buscar boleto de toda fatura sem necessidade.
+async function baixarBoletoFatura(codigoLancamento) {
+  if (!codigoLancamento) { alert('Essa fatura não tem código da Omie associado.'); return; }
+  try {
+    const r = await chamarOmieProxy({ acao: 'chamada_livre', endpoint: 'financas/contareceberboleto', call: 'ObterBoleto', param: { nCodTitulo: codigoLancamento } });
+    const dados = r.resultado || {};
+    if (dados.cCodBarras) {
+      prompt('Código de barras do boleto (copia e cola):', dados.cCodBarras);
+    } else if (dados.cLinkBoleto) {
+      window.open(dados.cLinkBoleto, '_blank');
+    } else {
+      alert('Boleto ainda não foi gerado pra essa fatura na Omie.');
+    }
+  } catch (e) {
+    alert('Erro ao buscar boleto: ' + e.message);
+  }
+}
+
 function renderFinanceiro() {
   popularFiltroCompetencia();
   const lista = faturasFiltradas();
+
+  const avisoFonte = faturasSaoReais
+    ? '<div style="font-size:11.5px; color:var(--green); margin-bottom:10px;">✓ Dados reais da Omie</div>'
+    : '<div style="font-size:11.5px; color:var(--text-faint); margin-bottom:10px;">Exemplo — sincronize essa clínica com a Omie no Cadastro pra ver as faturas reais.</div>';
+  document.getElementById('financeiro-aviso-fonte').innerHTML = avisoFonte;
+
   document.getElementById('financeiro-table').innerHTML = lista.map(f => `
     <tr>
       <td><input type="checkbox" class="fin-select" data-id="${f.id}"></td>
@@ -2311,7 +2527,9 @@ function renderFinanceiro() {
       <td>${statusFaturaPill(f.status)}</td>
       <td>${celulaAnexoFatura(f)}</td>
       <td><span class="download-link">Baixar NF ↓</span></td>
-      <td><span class="download-link">Baixar boleto ↓</span></td>
+      <td>${faturasSaoReais
+        ? `<span class="download-link" onclick="baixarBoletoFatura(${f.codigoLancamentoOmie})">Baixar boleto ↓</span>`
+        : '<span class="download-link">Baixar boleto ↓</span>'}</td>
     </tr>
   `).join('') || `<tr><td colspan="8"><div class="empty-state">Nenhuma fatura para os filtros selecionados.</div></td></tr>`;
   document.getElementById('fin-select-all').checked = false;
@@ -2768,6 +2986,7 @@ function setView(view) {
   if (view === 'movimentacao') recalcularPeriodosEexibir();
   if (view === 'cadastro') abrirTelaCadastro();
   if (view === 'relatorios') abrirRelatorios();
+  if (view === 'financeiro') abrirFinanceiro();
   if (view === 'avisos') carregarListaAvisos();
   if (view === 'overview') renderOverview();
 }
