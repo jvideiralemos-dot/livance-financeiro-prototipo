@@ -2554,6 +2554,7 @@ async function carregarFaturasReaisOmie() {
         status: mapearStatusOmie(c.status_titulo),
         codigoBarras: c.codigo_barras_ficha_compensacao || null,
         boletoGerado: !!(c.boleto && c.boleto.cGerado === 'S'),
+        numeroBoleto: (c.boleto && c.boleto.cNumBoleto) || null,
         numeroDocumento: match ? match[1] : null
       });
     });
@@ -2688,45 +2689,61 @@ async function baixarPdfsSelecionados() {
   const arquivos = []; // { url, nome }
   const nomeSeguro = s => String(s).replace(/[\/\\:*?"<>|]/g, '-');
 
+  // Busca tudo em paralelo (boletos + NF/Recibo de todos os grupos
+  // marcados de uma vez), bem mais rápido que buscar um por vez.
+  const buscas = [];
+
   for (const g of gruposMarcados) {
     for (const d of g.docs) {
       if (d.codigoLancamentoOmie) {
-        try {
-          const r = await chamarOmieProxy({
+        buscas.push(
+          chamarOmieProxy({
             acao: 'chamada_livre', endpoint: 'financas/contareceberboleto', call: 'ObterBoleto',
             param: { nCodTitulo: d.codigoLancamentoOmie }
-          });
-          if (r.resultado && r.resultado.cLinkBoleto) {
-            arquivos.push({ url: r.resultado.cLinkBoleto, nome: nomeSeguro(`boleto_${g.competencia}_${d.codigoLancamentoOmie}.pdf`) });
-          }
-        } catch (e) { /* segue pros próximos mesmo se um falhar */ }
-      }
-      if (d.numeroDocumento) {
-        try {
-          const rNf = await chamarOmieProxy({
-            acao: 'chamada_livre', endpoint: 'servicos/os', call: 'StatusOS',
-            param: { cCodIntOS: 'nf' + d.numeroDocumento, lPdfDemo: true, lPdfDest: true }
-          });
-          const dadosNf = rNf.resultado || {};
-          const rps = dadosNf.ListaRpsNfse && dadosNf.ListaRpsNfse[0];
-          const urlNf = rps && (rps.cUrlPdfDest || rps.cUrlPdfDemo);
-          const bateNf = Math.abs(parseFloat(dadosNf.nValorTot || 0) - d.valor) < 0.05;
-          if (urlNf && bateNf) arquivos.push({ url: urlNf, nome: nomeSeguro(`nota_fiscal_${g.competencia}_${d.numeroDocumento}.pdf`) });
-        } catch (e) { /* segue mesmo se não achar nota */ }
-        try {
-          const rRe = await chamarOmieProxy({
-            acao: 'chamada_livre', endpoint: 'servicos/os', call: 'StatusOS',
-            param: { cCodIntOS: 're' + d.numeroDocumento, lPdfRecibo: true }
-          });
-          const dadosRe = rRe.resultado || {};
-          const bateRe = Math.abs(parseFloat(dadosRe.nValorTot || 0) - d.valor) < 0.05;
-          if (dadosRe.cUrlPdfRecibo && bateRe) {
-            arquivos.push({ url: dadosRe.cUrlPdfRecibo, nome: nomeSeguro(`recibo_${g.competencia}_${d.numeroDocumento}.pdf`) });
-          }
-        } catch (e) { /* segue mesmo se não achar recibo */ }
+          }).then(r => {
+            if (r.resultado && r.resultado.cLinkBoleto) {
+              arquivos.push({ url: r.resultado.cLinkBoleto, nome: nomeSeguro(`boleto_${g.competencia}_${d.codigoLancamentoOmie}.pdf`) });
+            }
+          }).catch(() => {})
+        );
       }
     }
+
+    // Números distintos do grupo — busca cada um só 1 vez, e casa o
+    // documento achado com QUALQUER lançamento do grupo que tenha o
+    // mesmo valor (a NF e o Recibo às vezes são de lançamentos diferentes).
+    const numeros = [...new Set(g.docs.map(d => d.numeroDocumento).filter(Boolean))];
+    for (const numero of numeros) {
+      buscas.push(
+        chamarOmieProxy({
+          acao: 'chamada_livre', endpoint: 'servicos/os', call: 'StatusOS',
+          param: { cCodIntOS: 'nf' + numero, lPdfDemo: true, lPdfDest: true }
+        }).then(r => {
+          const dados = r.resultado || {};
+          const rps = dados.ListaRpsNfse && dados.ListaRpsNfse[0];
+          const url = rps && (rps.cUrlPdfDest || rps.cUrlPdfDemo);
+          const valor = parseFloat(dados.nValorTot || 0);
+          if (url && g.docs.some(d => Math.abs(d.valor - valor) < 0.05)) {
+            arquivos.push({ url, nome: nomeSeguro(`nota_fiscal_${g.competencia}_${numero}.pdf`) });
+          }
+        }).catch(() => {})
+      );
+      buscas.push(
+        chamarOmieProxy({
+          acao: 'chamada_livre', endpoint: 'servicos/os', call: 'StatusOS',
+          param: { cCodIntOS: 're' + numero, lPdfRecibo: true }
+        }).then(r => {
+          const dados = r.resultado || {};
+          const valor = parseFloat(dados.nValorTot || 0);
+          if (dados.cUrlPdfRecibo && g.docs.some(d => Math.abs(d.valor - valor) < 0.05)) {
+            arquivos.push({ url: dados.cUrlPdfRecibo, nome: nomeSeguro(`recibo_${g.competencia}_${numero}.pdf`) });
+          }
+        }).catch(() => {})
+      );
+    }
   }
+
+  await Promise.all(buscas);
 
   if (arquivos.length === 0) { alert('Nenhum PDF encontrado pras competências selecionadas.'); return; }
 
@@ -2762,39 +2779,65 @@ async function toggleGrupoAberto(competencia) {
 // é aberta pela primeira vez, não pra todas de uma vez.
 async function carregarDocumentosGrupo(g) {
   const documentos = [];
+
+  // 1) Uma linha de Boleto pra cada lançamento (sempre existe).
   for (const d of g.docs) {
     documentos.push({
       tipo: 'Boleto', valor: d.valor, vencimento: d.vencimento, status: d.status,
-      codigoBarras: d.codigoBarras, codigoLancamentoOmie: d.codigoLancamentoOmie
+      codigoBarras: d.codigoBarras, codigoLancamentoOmie: d.codigoLancamentoOmie,
+      numeroExibicao: d.numeroBoleto || ''
     });
-
-    if (d.numeroDocumento) {
-      try {
-        const rNf = await chamarOmieProxy({
-          acao: 'chamada_livre', endpoint: 'servicos/os', call: 'StatusOS',
-          param: { cCodIntOS: 'nf' + d.numeroDocumento, lPdfDemo: true, lPdfDest: true }
-        });
-        const dadosNf = rNf.resultado || {};
-        const rps = dadosNf.ListaRpsNfse && dadosNf.ListaRpsNfse[0];
-        const bateNf = rps && Math.abs(parseFloat(dadosNf.nValorTot || 0) - d.valor) < 0.05;
-        if (bateNf) {
-          documentos.push({ tipo: 'Nota fiscal', valor: parseFloat(dadosNf.nValorTot), vencimento: '-', status: 'emitida', numeroDocumento: d.numeroDocumento });
-        }
-      } catch (e) { /* segue sem a NF */ }
-
-      try {
-        const rRe = await chamarOmieProxy({
-          acao: 'chamada_livre', endpoint: 'servicos/os', call: 'StatusOS',
-          param: { cCodIntOS: 're' + d.numeroDocumento, lPdfRecibo: true }
-        });
-        const dadosRe = rRe.resultado || {};
-        const bateRe = dadosRe.cUrlPdfRecibo && Math.abs(parseFloat(dadosRe.nValorTot || 0) - d.valor) < 0.05;
-        if (bateRe) {
-          documentos.push({ tipo: 'Recibo', valor: parseFloat(dadosRe.nValorTot), vencimento: '-', status: 'emitido', numeroDocumento: d.numeroDocumento });
-        }
-      } catch (e) { /* segue sem o recibo */ }
-    }
   }
+
+  // 2) Números distintos usados nesse grupo (evita buscar 2x o mesmo número
+  // se, por acaso, aparecer repetido).
+  const numeros = [...new Set(g.docs.map(d => d.numeroDocumento).filter(Boolean))];
+
+  // 3) Busca NF e Recibo de TODOS os números em paralelo — bem mais rápido
+  // que buscar um de cada vez, esperando cada chamada terminar.
+  const buscas = numeros.flatMap(numero => [
+    chamarOmieProxy({
+      acao: 'chamada_livre', endpoint: 'servicos/os', call: 'StatusOS',
+      param: { cCodIntOS: 'nf' + numero, lPdfDemo: true, lPdfDest: true }
+    }).then(r => ({ tipoBusca: 'nf', numero, resultado: r.resultado || {} })).catch(() => null),
+    chamarOmieProxy({
+      acao: 'chamada_livre', endpoint: 'servicos/os', call: 'StatusOS',
+      param: { cCodIntOS: 're' + numero, lPdfRecibo: true }
+    }).then(r => ({ tipoBusca: 're', numero, resultado: r.resultado || {} })).catch(() => null)
+  ]);
+
+  const resultados = await Promise.all(buscas);
+
+  // 4) Casa cada documento achado com QUALQUER lançamento do grupo que
+  // tenha o mesmo valor — não necessariamente o que carregava o código,
+  // porque a NF e o Recibo às vezes pertencem a lançamentos diferentes
+  // dentro da mesma competência (por isso o Recibo estava sumindo).
+  for (const item of resultados) {
+    if (!item) continue;
+    let existe = false, valorEncontrado = 0, numeroExibicao = '';
+    if (item.tipoBusca === 'nf') {
+      const rps = item.resultado.ListaRpsNfse && item.resultado.ListaRpsNfse[0];
+      existe = !!rps;
+      valorEncontrado = parseFloat(item.resultado.nValorTot || 0);
+      numeroExibicao = (rps && rps.nNfse) || '';
+    } else {
+      existe = !!item.resultado.cUrlPdfRecibo;
+      valorEncontrado = parseFloat(item.resultado.nValorTot || 0);
+      numeroExibicao = item.resultado.cNumRecibo || '';
+    }
+    if (!existe) continue;
+
+    const bateComAlgumLancamento = g.docs.some(d => Math.abs(d.valor - valorEncontrado) < 0.05);
+    if (!bateComAlgumLancamento) continue;
+
+    documentos.push({
+      tipo: item.tipoBusca === 'nf' ? 'Nota fiscal' : 'Recibo',
+      valor: valorEncontrado, vencimento: '-',
+      status: item.tipoBusca === 'nf' ? 'emitida' : 'emitido',
+      numeroDocumento: item.numero, numeroExibicao
+    });
+  }
+
   g.documentos = documentos;
   g.documentosCarregados = true;
 }
@@ -2836,11 +2879,12 @@ function renderFinanceiro() {
           ? `<div style="border-top:1px solid var(--line);">${estadoCarregando('Carregando documentos...')}</div>`
           : `
         <table style="border-top:1px solid var(--line);">
-          <thead><tr><th style="padding-left:48px;">Documento</th><th>Valor</th><th>Vencimento</th><th>Status</th><th style="text-align:right; padding-right:18px;">Ações</th></tr></thead>
+          <thead><tr><th style="padding-left:48px;">Documento</th><th>Nº do documento</th><th>Valor</th><th>Vencimento</th><th>Status</th><th style="text-align:right; padding-right:18px;">Ações</th></tr></thead>
           <tbody>
             ${g.documentos.map(d => `
               <tr>
                 <td style="padding-left:48px;">${d.tipo}</td>
+                <td>${d.numeroExibicao || ''}</td>
                 <td class="val">${formatarMoeda(d.valor)}</td>
                 <td>${d.vencimento}</td>
                 <td>${statusFaturaPill(d.status)}</td>
