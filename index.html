@@ -446,11 +446,23 @@
 
     <div id="login-fields-clinica">
       <div class="login-field"><label>CNPJ</label><input type="text" id="login-clinica-usuario" placeholder="12.345.678/0001-90"></div>
-      <div class="login-field"><label>Senha</label><input type="password" id="login-clinica-senha"></div>
+      <div class="login-field">
+        <label>Senha</label>
+        <div style="position:relative;">
+          <input type="password" id="login-clinica-senha" style="width:100%; padding-right:36px;">
+          <span onclick="alternarSenhaVisivel('login-clinica-senha', this)" style="position:absolute; right:10px; top:50%; transform:translateY(-50%); cursor:pointer; font-size:15px; color:var(--text-faint); user-select:none;">👁</span>
+        </div>
+      </div>
     </div>
     <div id="login-fields-gestor" class="hidden">
-      <div class="login-field"><label>Usuário Livance</label><input type="text" id="login-gestor-usuario" placeholder="joana"></div>
-      <div class="login-field"><label>Senha</label><input type="password" id="login-gestor-senha"></div>
+      <div class="login-field"><label>Usuário Livance</label><input type="text" id="login-gestor-usuario"></div>
+      <div class="login-field">
+        <label>Senha</label>
+        <div style="position:relative;">
+          <input type="password" id="login-gestor-senha" style="width:100%; padding-right:36px;">
+          <span onclick="alternarSenhaVisivel('login-gestor-senha', this)" style="position:absolute; right:10px; top:50%; transform:translateY(-50%); cursor:pointer; font-size:15px; color:var(--text-faint); user-select:none;">👁</span>
+        </div>
+      </div>
     </div>
     <div id="login-erro" class="hidden" style="color:var(--red);font-size:12px;margin-bottom:12px;line-height:1.5;"></div>
 
@@ -551,7 +563,7 @@
       <!-- ============ HOME / VISÃO GERAL ============ -->
       <div id="view-overview" class="view">
         <div class="page-title">Home</div>
-        <div class="breadcrumb"><a href="#">Home</a></div>
+        <div class="breadcrumb"><a href="#" onclick="event.preventDefault(); setView('overview');">Home</a></div>
 
         <div class="overdue-banner" id="overdue-banner"></div>
 
@@ -590,7 +602,7 @@
       <!-- ============ CADASTRO ============ -->
       <div id="view-cadastro" class="view hidden">
         <div class="page-title">Cadastros</div>
-        <div class="breadcrumb"><a href="#">Home</a> / <span class="current">Cadastros</span></div>
+        <div class="breadcrumb"><a href="#" onclick="event.preventDefault(); setView('overview');">Home</a> / <span class="current">Cadastros</span></div>
 
         <!-- Lista de clínicas — só aparece pro gestor Livance -->
         <div id="cadastro-lista" class="hidden">
@@ -665,7 +677,7 @@
       <!-- ============ PROFISSIONAIS ============ -->
       <div id="view-medicos" class="view hidden">
         <div class="page-title">Profissionais</div>
-        <div class="breadcrumb"><a href="#">Home</a> / <span class="current">Profissionais</span></div>
+        <div class="breadcrumb"><a href="#" onclick="event.preventDefault(); setView('overview');">Home</a> / <span class="current">Profissionais</span></div>
 
         <div class="card form-card hidden" id="gestor-cadastro-membro">
           <div class="form-section-title">Incluir membro por código <span class="gestor-only-tag">visão gestor Livance</span></div>
@@ -696,7 +708,7 @@
       <!-- ============ MOVIMENTAÇÕES ============ -->
       <div id="view-movimentacao" class="view hidden">
         <div class="page-title">Movimentações</div>
-        <div class="breadcrumb"><a href="#">Home</a> / <span class="current">Movimentações</span></div>
+        <div class="breadcrumb"><a href="#" onclick="event.preventDefault(); setView('overview');">Home</a> / <span class="current">Movimentações</span></div>
 
         <div class="filter-row">
           <div class="filter-field wide">
@@ -736,7 +748,7 @@
       <!-- ============ RELATÓRIOS ============ -->
       <div id="view-relatorios" class="view hidden">
         <div class="page-title">Relatórios</div>
-        <div class="breadcrumb"><a href="#">Home</a> / <span class="current">Relatórios</span></div>
+        <div class="breadcrumb"><a href="#" onclick="event.preventDefault(); setView('overview');">Home</a> / <span class="current">Relatórios</span></div>
 
         <div class="filter-row">
           <div class="filter-field">
@@ -766,7 +778,7 @@
       <!-- ============ SOLICITAÇÕES ============ -->
       <div id="view-solicitacoes" class="view hidden">
         <div class="page-title">Solicitações</div>
-        <div class="breadcrumb"><a href="#">Home</a> / <span class="current">Solicitações</span></div>
+        <div class="breadcrumb"><a href="#" onclick="event.preventDefault(); setView('overview');">Home</a> / <span class="current">Solicitações</span></div>
 
         <div class="tickets-layout">
           <div class="tickets-list">
@@ -783,7 +795,7 @@
       <!-- ============ AVISOS (gestor) ============ -->
       <div id="view-avisos" class="view hidden">
         <div class="page-title">Avisos</div>
-        <div class="breadcrumb"><a href="#">Home</a> / <span class="current">Avisos</span></div>
+        <div class="breadcrumb"><a href="#" onclick="event.preventDefault(); setView('overview');">Home</a> / <span class="current">Avisos</span></div>
 
         <div class="toolbar-row">
           <button class="btn primary" style="margin-left:auto" onclick="novoAviso()">+ Novo aviso</button>
@@ -799,8 +811,7 @@
 
       <div id="view-financeiro" class="view hidden">
         <div class="page-title">Financeiro</div>
-        <div class="breadcrumb"><a href="#">Home</a> / <span class="current">Financeiro</span></div>
-        <div id="financeiro-aviso-fonte"></div>
+        <div class="breadcrumb"><a href="#" onclick="event.preventDefault(); setView('overview');">Home</a> / <span class="current">Financeiro</span></div>
 
         <div class="filter-row">
           <div class="filter-field">
@@ -808,14 +819,6 @@
             <select id="fin-filtro-competencia" onchange="renderFinanceiro()">
               <option value="todos">Todas</option>
             </select>
-          </div>
-          <div class="filter-field">
-            <div class="field-label">Vencimento de</div>
-            <input type="date" id="fin-filtro-venc-de" onchange="renderFinanceiro()">
-          </div>
-          <div class="filter-field">
-            <div class="field-label">Vencimento até</div>
-            <input type="date" id="fin-filtro-venc-ate" onchange="renderFinanceiro()">
           </div>
           <div class="filter-field">
             <div class="field-label">Status</div>
@@ -826,9 +829,27 @@
               <option value="vencido">Vencido</option>
             </select>
           </div>
-          <div class="filter-field" style="align-self:flex-end; margin-left:auto;">
-            <button class="btn" id="fin-baixar-selecionadas-btn" onclick="baixarPdfsSelecionados()" disabled>↓ Baixar PDFs das selecionadas</button>
+          <div class="filter-field">
+            <div class="field-label">Vencimento de</div>
+            <input type="date" id="fin-filtro-venc-de" onchange="renderFinanceiro()">
           </div>
+          <div class="filter-field">
+            <div class="field-label">Vencimento até</div>
+            <input type="date" id="fin-filtro-venc-ate" onchange="renderFinanceiro()">
+          </div>
+          <div class="filter-field" style="align-self:flex-end;">
+            <button class="btn" onclick="buscarFinanceiro()">Buscar</button>
+          </div>
+          <div class="filter-field" style="align-self:flex-end; margin-left:auto;">
+            <button class="btn" id="fin-baixar-selecionadas-btn" onclick="baixarPdfsSelecionados()" disabled>↓ Baixar</button>
+          </div>
+        </div>
+
+        <div class="filter-row" style="margin-top:-6px;">
+          <label style="font-size:12.5px; color:var(--text-soft); display:flex; align-items:center; gap:6px; cursor:pointer;">
+            <input type="checkbox" id="fin-selecionar-todas" onchange="toggleSelecionarTodasCompetencias(this)">
+            Selecionar todas
+          </label>
         </div>
 
         <div id="financeiro-grupos" style="display:flex; flex-direction:column; gap:10px;"></div>
@@ -1166,6 +1187,13 @@ function setProfileTab(perfil) {
   document.getElementById('login-foot-text').innerHTML = perfil === 'clinica'
     ? 'Ambiente do corpo clínico cadastrado na Livance.<br>Conectado à base real da Livance.'
     : 'Ambiente interno de gestão financeira da Livance.<br>Conectado à base real da Livance.';
+}
+
+function alternarSenhaVisivel(inputId, icone) {
+  const input = document.getElementById(inputId);
+  const visivel = input.type === 'text';
+  input.type = visivel ? 'password' : 'text';
+  icone.style.opacity = visivel ? '1' : '0.5';
 }
 
 function mostrarErroLogin(msg) {
@@ -2446,6 +2474,20 @@ async function abrirFinanceiro() {
   renderFinanceiro();
 }
 
+// Botão "Buscar" — força buscar de novo na Omie (ignora o cache), útil se
+// alguma fatura mudou de status desde que a tela abriu.
+async function buscarFinanceiro() {
+  faturasOmieCarregadas = false;
+  await carregarFaturasReaisOmie();
+  renderOverdueBanner();
+  renderFinanceiro();
+}
+
+function toggleSelecionarTodasCompetencias(checkbox) {
+  gruposFinanceiro.forEach(g => { g.marcado = checkbox.checked; });
+  renderFinanceiro();
+}
+
 async function carregarFaturasReaisOmie() {
   faturasOmieCarregadas = true; // marca como tentado — não fica tentando de novo a cada clique
   try {
@@ -2477,13 +2519,18 @@ async function carregarFaturasReaisOmie() {
     r.contas.forEach(c => {
       const comp = formatarCompetenciaOmie(c.data_emissao);
       if (!porCompetencia[comp]) porCompetencia[comp] = [];
+      // O código de integração (ex: "cr3871") compartilha o mesmo número com
+      // a nota fiscal ("nf3871") e o recibo ("re3871") dessa mesma cobrança —
+      // só muda o prefixo de 2 letras. Extrai esse número quando existir.
+      const match = String(c.codigo_lancamento_integracao || '').match(/^[a-z]{2}(\d+)$/i);
       porCompetencia[comp].push({
         codigoLancamentoOmie: c.codigo_lancamento_omie,
         vencimento: c.data_vencimento,
         valor: c.valor_documento,
         status: mapearStatusOmie(c.status_titulo),
         codigoBarras: c.codigo_barras_ficha_compensacao || null,
-        boletoGerado: !!(c.boleto && c.boleto.cGerado === 'S')
+        boletoGerado: !!(c.boleto && c.boleto.cGerado === 'S'),
+        numeroDocumento: match ? match[1] : null
       });
     });
 
@@ -2527,7 +2574,50 @@ function copiarCodigoBarras(codigo, btn) {
   setTimeout(() => { btn.innerHTML = original; }, 1200);
 }
 
-// Baixa o PDF de verdade — busca o link na hora (a Omie devolve uma URL
+// Baixa um arquivo de verdade (salva na pasta de Downloads) em vez de abrir
+// aba nova — usa um clique de <a download> apontando pra Edge Function, que
+// busca o PDF do lado do servidor e devolve pronto pra salvar.
+function baixarArquivoViaProxy(url, nomeArquivo) {
+  const link = `${SUPABASE_URL}/functions/v1/omie-proxy?acao=baixar_arquivo&url=${encodeURIComponent(url)}&nome=${encodeURIComponent(nomeArquivo)}`;
+  const a = document.createElement('a');
+  a.href = link;
+  a.download = nomeArquivo;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
+
+// Baixa a nota fiscal ou o recibo via StatusOS (mesmo endpoint servicos/os
+// que já funciona sem bloqueio) — tipo é 'nf' ou 're', combinado com o
+// número extraído do código de integração (numeroDocumento).
+async function baixarDocumentoOS(numero, tipo, btn) {
+  const original = btn.innerHTML;
+  btn.innerHTML = '<span style="font-size:11px;">Buscando...</span>';
+  btn.disabled = true;
+  try {
+    const param = tipo === 'nf'
+      ? { cCodIntOS: 'nf' + numero, lPdfDemo: true, lPdfDest: true }
+      : { cCodIntOS: 're' + numero, lPdfRecibo: true };
+    const r = await chamarOmieProxy({ acao: 'chamada_livre', endpoint: 'servicos/os', call: 'StatusOS', param });
+    const dados = r.resultado || {};
+    let url = null;
+    if (tipo === 'nf') {
+      const rps = dados.ListaRpsNfse && dados.ListaRpsNfse[0];
+      url = rps && (rps.cUrlPdfDest || rps.cUrlPdfDemo);
+    } else {
+      url = dados.cUrlPdfRecibo;
+    }
+    if (url) baixarArquivoViaProxy(url, `${tipo === 'nf' ? 'nota_fiscal' : 'recibo'}_${numero}.pdf`);
+    else alert(tipo === 'nf' ? 'Nota fiscal ainda não emitida pra esse documento.' : 'Recibo ainda não emitido pra esse documento.');
+  } catch (e) {
+    alert('Erro ao buscar documento: ' + e.message);
+  } finally {
+    btn.innerHTML = original;
+    btn.disabled = false;
+  }
+}
+
+// Baixa o boleto de verdade — busca o link na hora (a Omie devolve uma URL
 // assinada com prazo de validade, então não dá pra guardar/reaproveitar).
 async function baixarPdfDoc(codigoLancamentoOmie, btn) {
   if (!codigoLancamentoOmie) { alert('Essa fatura é só um exemplo — sincronize a clínica com a Omie primeiro.'); return; }
@@ -2541,7 +2631,7 @@ async function baixarPdfDoc(codigoLancamentoOmie, btn) {
     });
     const dados = r.resultado || {};
     if (dados.cLinkBoleto) {
-      window.open(dados.cLinkBoleto, '_blank');
+      baixarArquivoViaProxy(dados.cLinkBoleto, `boleto_${codigoLancamentoOmie}.pdf`);
     } else {
       alert('Boleto ainda não foi gerado pra essa fatura na Omie.');
     }
@@ -2553,25 +2643,68 @@ async function baixarPdfDoc(codigoLancamentoOmie, btn) {
   }
 }
 
-// Baixa o PDF de todos os documentos das competências marcadas — abre um
-// PDF de cada vez (o navegador pode pedir permissão pra "vários downloads"
-// na primeira vez; depois passa a baixar direto).
+// Baixa tudo das competências marcadas de uma vez: se for só 1 arquivo,
+// baixa direto; se for mais de 1, empacota tudo num ZIP (o navegador não
+// fica abrindo/baixando vários arquivos separados).
 async function baixarPdfsSelecionados() {
   const gruposMarcados = gruposFinanceiro.filter(g => g.marcado);
   if (gruposMarcados.length === 0) return;
 
+  const arquivos = []; // { url, nome }
+  const nomeSeguro = s => String(s).replace(/[\/\\:*?"<>|]/g, '-');
+
   for (const g of gruposMarcados) {
     for (const d of g.docs) {
-      if (!d.codigoLancamentoOmie) continue;
-      try {
-        const r = await chamarOmieProxy({
-          acao: 'chamada_livre', endpoint: 'financas/contareceberboleto', call: 'ObterBoleto',
-          param: { nCodTitulo: d.codigoLancamentoOmie }
-        });
-        if (r.resultado && r.resultado.cLinkBoleto) window.open(r.resultado.cLinkBoleto, '_blank');
-      } catch (e) { /* segue pros próximos mesmo se um falhar */ }
+      if (d.codigoLancamentoOmie) {
+        try {
+          const r = await chamarOmieProxy({
+            acao: 'chamada_livre', endpoint: 'financas/contareceberboleto', call: 'ObterBoleto',
+            param: { nCodTitulo: d.codigoLancamentoOmie }
+          });
+          if (r.resultado && r.resultado.cLinkBoleto) {
+            arquivos.push({ url: r.resultado.cLinkBoleto, nome: nomeSeguro(`boleto_${g.competencia}_${d.codigoLancamentoOmie}.pdf`) });
+          }
+        } catch (e) { /* segue pros próximos mesmo se um falhar */ }
+      }
+      if (d.numeroDocumento) {
+        try {
+          const rNf = await chamarOmieProxy({
+            acao: 'chamada_livre', endpoint: 'servicos/os', call: 'StatusOS',
+            param: { cCodIntOS: 'nf' + d.numeroDocumento, lPdfDemo: true, lPdfDest: true }
+          });
+          const rps = rNf.resultado && rNf.resultado.ListaRpsNfse && rNf.resultado.ListaRpsNfse[0];
+          const urlNf = rps && (rps.cUrlPdfDest || rps.cUrlPdfDemo);
+          if (urlNf) arquivos.push({ url: urlNf, nome: nomeSeguro(`nota_fiscal_${g.competencia}_${d.numeroDocumento}.pdf`) });
+        } catch (e) { /* segue mesmo se não achar nota */ }
+        try {
+          const rRe = await chamarOmieProxy({
+            acao: 'chamada_livre', endpoint: 'servicos/os', call: 'StatusOS',
+            param: { cCodIntOS: 're' + d.numeroDocumento, lPdfRecibo: true }
+          });
+          if (rRe.resultado && rRe.resultado.cUrlPdfRecibo) {
+            arquivos.push({ url: rRe.resultado.cUrlPdfRecibo, nome: nomeSeguro(`recibo_${g.competencia}_${d.numeroDocumento}.pdf`) });
+          }
+        } catch (e) { /* segue mesmo se não achar recibo */ }
+      }
     }
   }
+
+  if (arquivos.length === 0) { alert('Nenhum PDF encontrado pras competências selecionadas.'); return; }
+
+  if (arquivos.length === 1) {
+    baixarArquivoViaProxy(arquivos[0].url, arquivos[0].nome);
+    return;
+  }
+
+  const urls = arquivos.map(a => encodeURIComponent(a.url)).join(',');
+  const nomes = arquivos.map(a => encodeURIComponent(a.nome)).join(',');
+  const link = `${SUPABASE_URL}/functions/v1/omie-proxy?acao=baixar_zip&urls=${urls}&nomes=${nomes}`;
+  const a = document.createElement('a');
+  a.href = link;
+  a.download = 'financeiro.zip';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
 }
 
 function toggleGrupoAberto(competencia) {
@@ -2590,11 +2723,6 @@ function toggleGrupoMarcado(competencia, event) {
 function renderFinanceiro() {
   popularFiltroCompetencia();
   const lista = faturasFiltradas();
-
-  const avisoFonte = faturasSaoReais
-    ? '<div style="font-size:11.5px; color:var(--green); margin-bottom:10px;">✓ Dados reais da Omie</div>'
-    : '<div style="font-size:11.5px; color:var(--text-faint); margin-bottom:10px;">Exemplo — sincronize essa clínica com a Omie no Cadastro pra ver as faturas reais.</div>';
-  document.getElementById('financeiro-aviso-fonte').innerHTML = avisoFonte;
 
   const btnBaixar = document.getElementById('fin-baixar-selecionadas-btn');
   const algumMarcado = gruposFinanceiro.some(g => g.marcado);
@@ -2620,8 +2748,12 @@ function renderFinanceiro() {
                 <td class="val">${formatarMoeda(d.valor)}</td>
                 <td>${statusFaturaPill(d.status)}</td>
                 <td style="text-align:right; padding-right:18px;">
-                  <button class="btn" style="padding:5px 10px; font-size:12px;" onclick="baixarPdfDoc(${d.codigoLancamentoOmie || 'null'}, this)">↓ PDF</button>
+                  <button class="btn" style="padding:5px 10px; font-size:12px;" onclick="baixarPdfDoc(${d.codigoLancamentoOmie || 'null'}, this)">↓ Boleto</button>
                   ${d.codigoBarras ? `<button class="btn" style="padding:5px 10px; font-size:12px; margin-left:6px;" onclick="copiarCodigoBarras('${d.codigoBarras}', this)">Copiar código</button>` : ''}
+                  ${d.numeroDocumento ? `
+                    <button class="btn" style="padding:5px 10px; font-size:12px; margin-left:6px;" onclick="baixarDocumentoOS('${d.numeroDocumento}', 'nf', this)">↓ Nota fiscal</button>
+                    <button class="btn" style="padding:5px 10px; font-size:12px; margin-left:6px;" onclick="baixarDocumentoOS('${d.numeroDocumento}', 're', this)">↓ Recibo</button>
+                  ` : ''}
                 </td>
               </tr>
             `).join('')}
