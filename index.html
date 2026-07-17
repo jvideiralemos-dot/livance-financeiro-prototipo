@@ -2508,14 +2508,7 @@ async function abrirFinanceiro() {
 // Botão "Buscar" — força sincronizar com a Omie agora (não espera o
 // agendamento de hora em hora) e recarrega da tabela local em seguida.
 async function buscarFinanceiro() {
-  document.getElementById('financeiro-grupos').innerHTML = estadoCarregando('Buscando faturas atualizadas na Omie...');
-  try {
-    await fetch(`${SUPABASE_URL}/functions/v1/sincronizar-financeiro`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ clinica_id: sessao.clinicaId })
-    });
-  } catch (e) { /* mesmo se falhar, tenta mostrar o que já tem no banco */ }
+  document.getElementById('financeiro-grupos').innerHTML = estadoCarregando('Atualizando...');
   financeiroCarregamentoPromise = null;
   await garantirFaturasCarregadas();
   renderOverdueBanner();
@@ -2672,61 +2665,45 @@ async function baixarPdfsSelecionados() {
   const gruposMarcados = gruposFinanceiro.filter(g => g.marcado);
   if (gruposMarcados.length === 0) return;
 
-  const arquivos = []; // { url, nome }
   const nomeSeguro = s => String(s).replace(/[\/\\:*?"<>|]/g, '-');
-  const buscas = [];
+  const itens = []; // { tipo, id, nome }
 
   for (const g of gruposMarcados) {
     for (const d of g.documentos) {
       if (d.tipo === 'Boleto' && d.codigoLancamentoOmie) {
-        buscas.push(
-          chamarOmieProxy({
-            acao: 'chamada_livre', endpoint: 'financas/contareceberboleto', call: 'ObterBoleto',
-            param: { nCodTitulo: d.codigoLancamentoOmie }
-          }).then(r => {
-            if (r.resultado && r.resultado.cLinkBoleto) {
-              arquivos.push({ url: r.resultado.cLinkBoleto, nome: nomeSeguro(`boleto_${g.competencia}_${d.codigoLancamentoOmie}.pdf`) });
-            }
-          }).catch(() => {})
-        );
+        itens.push({ tipo: 'boleto', id: d.codigoLancamentoOmie, nome: nomeSeguro(`boleto_${g.competencia}_${d.codigoLancamentoOmie}.pdf`) });
       } else if (d.tipo === 'Nota fiscal' && d.nCodOS) {
-        buscas.push(
-          chamarOmieProxy({
-            acao: 'chamada_livre', endpoint: 'servicos/os', call: 'StatusOS',
-            param: { nCodOS: d.nCodOS, lPdfDemo: true, lPdfDest: true }
-          }).then(r => {
-            const dados = r.resultado || {};
-            const rps = dados.ListaRpsNfse && dados.ListaRpsNfse[0];
-            const url = rps && (rps.cUrlPdfDest || rps.cUrlPdfDemo);
-            if (url) arquivos.push({ url, nome: nomeSeguro(`nota_fiscal_${g.competencia}_${d.nCodOS}.pdf`) });
-          }).catch(() => {})
-        );
+        itens.push({ tipo: 'nf', id: d.nCodOS, nome: nomeSeguro(`nota_fiscal_${g.competencia}_${d.nCodOS}.pdf`) });
       } else if (d.tipo === 'Recibo' && d.nCodOS) {
-        buscas.push(
-          chamarOmieProxy({
-            acao: 'chamada_livre', endpoint: 'servicos/os', call: 'StatusOS',
-            param: { nCodOS: d.nCodOS, lPdfRecibo: true }
-          }).then(r => {
-            const dados = r.resultado || {};
-            if (dados.cUrlPdfRecibo) arquivos.push({ url: dados.cUrlPdfRecibo, nome: nomeSeguro(`recibo_${g.competencia}_${d.nCodOS}.pdf`) });
-          }).catch(() => {})
-        );
+        itens.push({ tipo: 'recibo', id: d.nCodOS, nome: nomeSeguro(`recibo_${g.competencia}_${d.nCodOS}.pdf`) });
       }
     }
   }
 
-  await Promise.all(buscas);
+  if (itens.length === 0) { alert('Nenhum PDF encontrado pras competências selecionadas.'); return; }
 
-  if (arquivos.length === 0) { alert('Nenhum PDF encontrado pras competências selecionadas.'); return; }
-
-  if (arquivos.length === 1) {
-    baixarArquivoViaProxy(arquivos[0].url, arquivos[0].nome);
+  // Só 1 arquivo — baixa direto, sem passar pelo ZIP.
+  if (itens.length === 1) {
+    const item = itens[0];
+    if (item.tipo === 'boleto') {
+      const r = await chamarOmieProxy({ acao: 'chamada_livre', endpoint: 'financas/contareceberboleto', call: 'ObterBoleto', param: { nCodTitulo: item.id } });
+      if (r.resultado && r.resultado.cLinkBoleto) baixarArquivoViaProxy(r.resultado.cLinkBoleto, item.nome);
+    } else {
+      const param = item.tipo === 'nf' ? { nCodOS: item.id, lPdfDemo: true, lPdfDest: true } : { nCodOS: item.id, lPdfRecibo: true };
+      const r = await chamarOmieProxy({ acao: 'chamada_livre', endpoint: 'servicos/os', call: 'StatusOS', param });
+      const dados = r.resultado || {};
+      const url = item.tipo === 'nf'
+        ? ((dados.ListaRpsNfse && dados.ListaRpsNfse[0] && (dados.ListaRpsNfse[0].cUrlPdfDest || dados.ListaRpsNfse[0].cUrlPdfDemo)) || null)
+        : (dados.cUrlPdfRecibo || null);
+      if (url) baixarArquivoViaProxy(url, item.nome);
+    }
     return;
   }
 
-  const urls = arquivos.map(a => encodeURIComponent(a.url)).join(',');
-  const nomes = arquivos.map(a => encodeURIComponent(a.nome)).join(',');
-  const link = `${SUPABASE_URL}/functions/v1/omie-proxy?acao=baixar_zip&urls=${urls}&nomes=${nomes}`;
+  // 2+ arquivos — a Edge Function busca o link de cada um do lado do
+  // servidor e devolve tudo já empacotado num ZIP (evita passar links
+  // compridos pela URL, que cortava e corrompia o arquivo).
+  const link = `${SUPABASE_URL}/functions/v1/omie-proxy?acao=baixar_zip&itens=${encodeURIComponent(JSON.stringify(itens))}`;
   const a = document.createElement('a');
   a.href = link;
   a.download = 'financeiro.zip';
