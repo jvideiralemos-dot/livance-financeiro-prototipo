@@ -286,6 +286,16 @@
   .credit-due b { color: var(--text); }
 
   .empty-state { padding: 48px 24px; text-align: center; color: var(--text-faint); font-size: 13px; background: var(--surface); }
+  .spinner {
+    width: 26px; height: 26px;
+    border: 3px solid var(--line);
+    border-top-color: var(--orange);
+    border-radius: 50%;
+    animation: girar-spinner 0.8s linear infinite;
+    margin: 0 auto 12px;
+  }
+  @keyframes girar-spinner { to { transform: rotate(360deg); } }
+  .loading-state { padding: 48px 24px; text-align: center; color: var(--text-faint); font-size: 13px; background: var(--surface); }
 
   /* ---------- Other screens reuse table styles ---------- */
   .card { background: var(--surface); border: 1px solid var(--line); border-radius: 4px; }
@@ -499,7 +509,6 @@
   <div class="sidebar">
     <div class="sidebar-profile">
       <div class="avatar-circle"><img src="data:image/png;base64,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" alt="Livance" style="width:110px; height:auto;"></div>
-      <div class="profile-name" id="sidebar-profile-name">Clínica</div>
       <div id="gestor-clinica-selector" class="hidden" style="margin-top:10px;">
         <select id="gestor-clinica-select" onchange="trocarClinicaGestor()" style="width:100%; font-size:11.5px; padding:6px 8px;"></select>
       </div>
@@ -837,10 +846,8 @@
             <div class="field-label">Vencimento até</div>
             <input type="date" id="fin-filtro-venc-ate" onchange="renderFinanceiro()">
           </div>
-          <div class="filter-field" style="align-self:flex-end;">
+          <div class="filter-field" style="align-self:flex-end; margin-left:auto; display:flex; gap:8px;">
             <button class="btn" onclick="buscarFinanceiro()">Buscar</button>
-          </div>
-          <div class="filter-field" style="align-self:flex-end; margin-left:auto;">
             <button class="btn" id="fin-baixar-selecionadas-btn" onclick="baixarPdfsSelecionados()" disabled>↓ Baixar</button>
           </div>
         </div>
@@ -1055,26 +1062,27 @@ let perfilAtivo = 'clinica';
 
 // Faturas: começam com esse mock (protótipo visual), mas são substituídas
 // por dado real da Omie assim que a clínica tiver o código de cliente
-// sincronizado (ver carregarFaturasReaisOmie). Enquanto não sincronizar,
-// continua mostrando esse exemplo pra tela nunca ficar vazia/quebrada.
+// Faturas: NUNCA mostra dado fictício — enquanto a busca real na Omie não
+// terminar, a tela fica em estado de carregamento (ver garantirFaturasCarregadas).
 // Cada "documento" dentro de uma competência é, na prática, um lançamento
 // (conta a receber) da Omie — que já vem com seu próprio boleto/PDF.
-let gruposFinanceiro = [
-  {
-    competencia: 'Julho/2026', status: 'vencido', total: 3420, marcado: false, aberto: false,
-    docs: [{ codigoLancamentoOmie: null, vencimento: '10/06/2026', valor: 3420, status: 'vencido', codigoBarras: null }]
-  },
-  {
-    competencia: 'Junho/2026', status: 'aberto', total: 24180, marcado: false, aberto: false,
-    docs: [{ codigoLancamentoOmie: null, vencimento: '10/07/2026', valor: 24180, status: 'aberto', codigoBarras: null }]
-  },
-  {
-    competencia: 'Maio/2026', status: 'pago', total: 21640, marcado: false, aberto: false,
-    docs: [{ codigoLancamentoOmie: null, vencimento: '10/06/2026', valor: 21640, status: 'pago', codigoBarras: null }]
-  }
-];
-let faturasOmieCarregadas = false;
+let gruposFinanceiro = [];
 let faturasSaoReais = false;
+let financeiroCarregamentoPromise = null; // evita disparar a busca 2x ao mesmo tempo
+
+// Garante que a busca na Omie rodou (ou está rodando) — chama de qualquer
+// lugar sem medo de duplicar a chamada. Atualiza o aviso de vencidas e a
+// tela do Financeiro (se estiver aberta) assim que os dados chegarem.
+function garantirFaturasCarregadas() {
+  if (!financeiroCarregamentoPromise) {
+    financeiroCarregamentoPromise = carregarFaturasReaisOmie().then(() => {
+      renderOverdueBanner();
+      const viewFin = document.getElementById('view-financeiro');
+      if (viewFin && !viewFin.classList.contains('hidden')) renderFinanceiro();
+    });
+  }
+  return financeiroCarregamentoPromise;
+}
 
 /* =====================================================================
    HELPERS DE REDE
@@ -1273,6 +1281,12 @@ async function validarSessaoSalva() {
   }
 }
 
+// Estado de carregamento reutilizável (Home, Movimentações, Financeiro) —
+// pra nunca mostrar tabela vazia/parada enquanto os dados reais não chegam.
+function estadoCarregando(mensagem) {
+  return `<div class="loading-state"><div class="spinner"></div>${mensagem}</div>`;
+}
+
 async function entrarNoPortal() {
   document.getElementById('login-screen').classList.add('hidden');
   document.getElementById('app').classList.remove('hidden');
@@ -1289,7 +1303,6 @@ async function entrarNoPortal() {
   if (isGestor) {
     await carregarClinicasGestor();
   } else {
-    document.getElementById('sidebar-profile-name').textContent = sessao.clinicaNome || 'Clínica';
     document.getElementById('topbar-saudacao').textContent = 'Olá, ' + (sessao.clinicaNome || 'Clínica') + '!';
   }
 
@@ -1367,7 +1380,6 @@ async function carregarClinicasGestor() {
     sessao.clinicaNome = atual.razao_social;
     sel.value = sessao.clinicaId;
   }
-  document.getElementById('sidebar-profile-name').textContent = 'Gestão Livance';
   document.getElementById('topbar-saudacao').textContent = 'Olá, gestão Livance!';
 }
 
@@ -1386,6 +1398,11 @@ async function carregarTudoDaClinica() {
   meses = [];
   mesAtivo = null;
 
+  // Mostra "carregando" ANTES de buscar — evita mostrar tabela vazia ou
+  // (pior ainda, na troca de clínica) dado da clínica anterior por engano.
+  document.getElementById('overview-table').innerHTML = `<tr><td colspan="99">${estadoCarregando('Carregando informações da clínica...')}</td></tr>`;
+  document.getElementById('movimentacao-table').innerHTML = `<tr><td colspan="99">${estadoCarregando('Carregando movimentações...')}</td></tr>`;
+
   await Promise.all([
     carregarMembros(),
     carregarSolicitacoes(),
@@ -1399,8 +1416,11 @@ async function carregarTudoDaClinica() {
   await carregarMovimentacaoBruta();
   renderOverview(); // agora com movimentacoesBrutas carregado, recalcula com valores reais
 
-  faturasOmieCarregadas = false; // força buscar de novo na Omie quando abrir Financeiro dessa clínica
-  renderOverdueBanner();
+  gruposFinanceiro = [];
+  faturasSaoReais = false;
+  financeiroCarregamentoPromise = null;
+  renderOverdueBanner(); // nada aparece ainda — só depois que a Omie confirmar
+  garantirFaturasCarregadas(); // dispara em segundo plano, sem travar a entrada no portal
   renderFinanceiro();
 }
 
@@ -2422,6 +2442,7 @@ function renderOverview() {
 function statusFaturaPill(status) {
   if (status === 'pago') return '<span class="pill ok">Pago</span>';
   if (status === 'vencido') return '<span class="pill warn">Vencido</span>';
+  if (status === 'emitida' || status === 'emitido') return '<span class="pill neutral">Emitido</span>';
   return '<span class="pill neutral">Em aberto</span>';
 }
 
@@ -2469,7 +2490,10 @@ function faturasFiltradas() {
    ===================================================================== */
 
 async function abrirFinanceiro() {
-  if (!faturasOmieCarregadas) await carregarFaturasReaisOmie();
+  if (!faturasSaoReais) {
+    document.getElementById('financeiro-grupos').innerHTML = estadoCarregando('Carregando faturas...');
+  }
+  await garantirFaturasCarregadas();
   renderOverdueBanner();
   renderFinanceiro();
 }
@@ -2477,8 +2501,9 @@ async function abrirFinanceiro() {
 // Botão "Buscar" — força buscar de novo na Omie (ignora o cache), útil se
 // alguma fatura mudou de status desde que a tela abriu.
 async function buscarFinanceiro() {
-  faturasOmieCarregadas = false;
-  await carregarFaturasReaisOmie();
+  financeiroCarregamentoPromise = null;
+  document.getElementById('financeiro-grupos').innerHTML = estadoCarregando('Carregando faturas...');
+  await garantirFaturasCarregadas();
   renderOverdueBanner();
   renderFinanceiro();
 }
@@ -2489,7 +2514,6 @@ function toggleSelecionarTodasCompetencias(checkbox) {
 }
 
 async function carregarFaturasReaisOmie() {
-  faturasOmieCarregadas = true; // marca como tentado — não fica tentando de novo a cada clique
   try {
     const cod = await rpc('fn_obter_codigo_cliente_omie', { p_token: sessao.token, p_clinica_id: sessao.clinicaId });
     if (!cod.ok || !cod.codigo_cliente_omie) {
@@ -2590,7 +2614,7 @@ function baixarArquivoViaProxy(url, nomeArquivo) {
 // Baixa a nota fiscal ou o recibo via StatusOS (mesmo endpoint servicos/os
 // que já funciona sem bloqueio) — tipo é 'nf' ou 're', combinado com o
 // número extraído do código de integração (numeroDocumento).
-async function baixarDocumentoOS(numero, tipo, btn) {
+async function baixarDocumentoOS(numero, tipo, valorEsperado, btn) {
   const original = btn.innerHTML;
   btn.innerHTML = '<span style="font-size:11px;">Buscando...</span>';
   btn.disabled = true;
@@ -2607,8 +2631,19 @@ async function baixarDocumentoOS(numero, tipo, btn) {
     } else {
       url = dados.cUrlPdfRecibo;
     }
-    if (url) baixarArquivoViaProxy(url, `${tipo === 'nf' ? 'nota_fiscal' : 'recibo'}_${numero}.pdf`);
-    else alert(tipo === 'nf' ? 'Nota fiscal ainda não emitida pra esse documento.' : 'Recibo ainda não emitido pra esse documento.');
+    if (!url) { alert(tipo === 'nf' ? 'Nota fiscal ainda não emitida pra esse documento.' : 'Recibo ainda não emitido pra esse documento.'); return; }
+
+    // Confere se o valor do documento encontrado bate com o valor dessa
+    // linha — o mesmo "número" pode ter mais de um lançamento na mesma
+    // competência, e a gente não quer abrir o documento errado.
+    const valorEncontrado = parseFloat(dados.nValorTot || 0);
+    const bateValor = Math.abs(valorEncontrado - valorEsperado) < 0.05;
+    if (!bateValor) {
+      alert(`O ${tipo === 'nf' ? 'nota fiscal' : 'recibo'} encontrado é de ${formatarMoeda(valorEncontrado)}, e essa linha é de ${formatarMoeda(valorEsperado)} — deve pertencer a outro lançamento dessa mesma competência. Não foi aberto, pra evitar confusão.`);
+      return;
+    }
+
+    baixarArquivoViaProxy(url, `${tipo === 'nf' ? 'nota_fiscal' : 'recibo'}_${numero}.pdf`);
   } catch (e) {
     alert('Erro ao buscar documento: ' + e.message);
   } finally {
@@ -2672,17 +2707,21 @@ async function baixarPdfsSelecionados() {
             acao: 'chamada_livre', endpoint: 'servicos/os', call: 'StatusOS',
             param: { cCodIntOS: 'nf' + d.numeroDocumento, lPdfDemo: true, lPdfDest: true }
           });
-          const rps = rNf.resultado && rNf.resultado.ListaRpsNfse && rNf.resultado.ListaRpsNfse[0];
+          const dadosNf = rNf.resultado || {};
+          const rps = dadosNf.ListaRpsNfse && dadosNf.ListaRpsNfse[0];
           const urlNf = rps && (rps.cUrlPdfDest || rps.cUrlPdfDemo);
-          if (urlNf) arquivos.push({ url: urlNf, nome: nomeSeguro(`nota_fiscal_${g.competencia}_${d.numeroDocumento}.pdf`) });
+          const bateNf = Math.abs(parseFloat(dadosNf.nValorTot || 0) - d.valor) < 0.05;
+          if (urlNf && bateNf) arquivos.push({ url: urlNf, nome: nomeSeguro(`nota_fiscal_${g.competencia}_${d.numeroDocumento}.pdf`) });
         } catch (e) { /* segue mesmo se não achar nota */ }
         try {
           const rRe = await chamarOmieProxy({
             acao: 'chamada_livre', endpoint: 'servicos/os', call: 'StatusOS',
             param: { cCodIntOS: 're' + d.numeroDocumento, lPdfRecibo: true }
           });
-          if (rRe.resultado && rRe.resultado.cUrlPdfRecibo) {
-            arquivos.push({ url: rRe.resultado.cUrlPdfRecibo, nome: nomeSeguro(`recibo_${g.competencia}_${d.numeroDocumento}.pdf`) });
+          const dadosRe = rRe.resultado || {};
+          const bateRe = Math.abs(parseFloat(dadosRe.nValorTot || 0) - d.valor) < 0.05;
+          if (dadosRe.cUrlPdfRecibo && bateRe) {
+            arquivos.push({ url: dadosRe.cUrlPdfRecibo, nome: nomeSeguro(`recibo_${g.competencia}_${d.numeroDocumento}.pdf`) });
           }
         } catch (e) { /* segue mesmo se não achar recibo */ }
       }
@@ -2707,10 +2746,57 @@ async function baixarPdfsSelecionados() {
   document.body.removeChild(a);
 }
 
-function toggleGrupoAberto(competencia) {
+async function toggleGrupoAberto(competencia) {
   const g = gruposFinanceiro.find(x => x.competencia === competencia);
-  if (g) g.aberto = !g.aberto;
+  if (!g) return;
+  g.aberto = !g.aberto;
   renderFinanceiro();
+  if (g.aberto && !g.documentosCarregados) {
+    await carregarDocumentosGrupo(g);
+    renderFinanceiro();
+  }
+}
+
+// Monta 1 linha por documento (Boleto sempre; Nota fiscal e Recibo só se
+// achar e o valor bater com o lançamento) — busca só quando a competência
+// é aberta pela primeira vez, não pra todas de uma vez.
+async function carregarDocumentosGrupo(g) {
+  const documentos = [];
+  for (const d of g.docs) {
+    documentos.push({
+      tipo: 'Boleto', valor: d.valor, vencimento: d.vencimento, status: d.status,
+      codigoBarras: d.codigoBarras, codigoLancamentoOmie: d.codigoLancamentoOmie
+    });
+
+    if (d.numeroDocumento) {
+      try {
+        const rNf = await chamarOmieProxy({
+          acao: 'chamada_livre', endpoint: 'servicos/os', call: 'StatusOS',
+          param: { cCodIntOS: 'nf' + d.numeroDocumento, lPdfDemo: true, lPdfDest: true }
+        });
+        const dadosNf = rNf.resultado || {};
+        const rps = dadosNf.ListaRpsNfse && dadosNf.ListaRpsNfse[0];
+        const bateNf = rps && Math.abs(parseFloat(dadosNf.nValorTot || 0) - d.valor) < 0.05;
+        if (bateNf) {
+          documentos.push({ tipo: 'Nota fiscal', valor: parseFloat(dadosNf.nValorTot), vencimento: '-', status: 'emitida', numeroDocumento: d.numeroDocumento });
+        }
+      } catch (e) { /* segue sem a NF */ }
+
+      try {
+        const rRe = await chamarOmieProxy({
+          acao: 'chamada_livre', endpoint: 'servicos/os', call: 'StatusOS',
+          param: { cCodIntOS: 're' + d.numeroDocumento, lPdfRecibo: true }
+        });
+        const dadosRe = rRe.resultado || {};
+        const bateRe = dadosRe.cUrlPdfRecibo && Math.abs(parseFloat(dadosRe.nValorTot || 0) - d.valor) < 0.05;
+        if (bateRe) {
+          documentos.push({ tipo: 'Recibo', valor: parseFloat(dadosRe.nValorTot), vencimento: '-', status: 'emitido', numeroDocumento: d.numeroDocumento });
+        }
+      } catch (e) { /* segue sem o recibo */ }
+    }
+  }
+  g.documentos = documentos;
+  g.documentosCarregados = true;
 }
 
 function toggleGrupoMarcado(competencia, event) {
@@ -2728,6 +2814,13 @@ function renderFinanceiro() {
   const algumMarcado = gruposFinanceiro.some(g => g.marcado);
   btnBaixar.disabled = !algumMarcado || !faturasSaoReais;
 
+  if (!faturasSaoReais) {
+    document.getElementById('financeiro-grupos').innerHTML = gruposFinanceiro.length === 0
+      ? estadoCarregando('Carregando faturas...')
+      : '<div class="empty-state">Essa clínica ainda não está sincronizada com a Omie — sincronize no Cadastro pra ver as faturas.</div>';
+    return;
+  }
+
   document.getElementById('financeiro-grupos').innerHTML = lista.map(g => `
     <div class="card" style="padding:0; ${g.marcado ? 'border-color:var(--petrol);' : ''}">
       <div style="display:flex; align-items:center; gap:14px; padding:14px 18px; cursor:pointer;" onclick="toggleGrupoAberto('${g.competencia}')">
@@ -2738,28 +2831,32 @@ function renderFinanceiro() {
         <div style="font-size:14px; font-weight:700; min-width:120px; text-align:right;">${formatarMoeda(g.total)}</div>
         <div style="min-width:90px; text-align:right;">${statusFaturaPill(g.status)}</div>
       </div>
-      ${g.aberto ? `
+      ${g.aberto ? (
+        !g.documentosCarregados
+          ? `<div style="border-top:1px solid var(--line);">${estadoCarregando('Carregando documentos...')}</div>`
+          : `
         <table style="border-top:1px solid var(--line);">
-          <thead><tr><th style="padding-left:48px;">Vencimento</th><th>Valor</th><th>Status</th><th style="text-align:right; padding-right:18px;">Ações</th></tr></thead>
+          <thead><tr><th style="padding-left:48px;">Documento</th><th>Valor</th><th>Vencimento</th><th>Status</th><th style="text-align:right; padding-right:18px;">Ações</th></tr></thead>
           <tbody>
-            ${g.docs.map(d => `
+            ${g.documentos.map(d => `
               <tr>
-                <td style="padding-left:48px;">${d.vencimento}</td>
+                <td style="padding-left:48px;">${d.tipo}</td>
                 <td class="val">${formatarMoeda(d.valor)}</td>
+                <td>${d.vencimento}</td>
                 <td>${statusFaturaPill(d.status)}</td>
                 <td style="text-align:right; padding-right:18px;">
-                  <button class="btn" style="padding:5px 10px; font-size:12px;" onclick="baixarPdfDoc(${d.codigoLancamentoOmie || 'null'}, this)">↓ Boleto</button>
-                  ${d.codigoBarras ? `<button class="btn" style="padding:5px 10px; font-size:12px; margin-left:6px;" onclick="copiarCodigoBarras('${d.codigoBarras}', this)">Copiar código</button>` : ''}
-                  ${d.numeroDocumento ? `
-                    <button class="btn" style="padding:5px 10px; font-size:12px; margin-left:6px;" onclick="baixarDocumentoOS('${d.numeroDocumento}', 'nf', this)">↓ Nota fiscal</button>
-                    <button class="btn" style="padding:5px 10px; font-size:12px; margin-left:6px;" onclick="baixarDocumentoOS('${d.numeroDocumento}', 're', this)">↓ Recibo</button>
-                  ` : ''}
+                  ${d.tipo === 'Boleto' ? `
+                    <button class="btn" style="padding:5px 10px; font-size:12px;" onclick="baixarPdfDoc(${d.codigoLancamentoOmie || 'null'}, this)">↓ Baixar</button>
+                    ${d.codigoBarras ? `<button class="btn" style="padding:5px 10px; font-size:12px; margin-left:6px;" onclick="copiarCodigoBarras('${d.codigoBarras}', this)">Copiar código</button>` : ''}
+                  ` : `
+                    <button class="btn" style="padding:5px 10px; font-size:12px;" onclick="baixarDocumentoOS('${d.numeroDocumento}', '${d.tipo === 'Nota fiscal' ? 'nf' : 're'}', ${d.valor}, this)">↓ Baixar</button>
+                  `}
                 </td>
               </tr>
             `).join('')}
           </tbody>
         </table>
-      ` : ''}
+      `) : ''}
     </div>
   `).join('') || `<div class="empty-state">Nenhuma fatura para os filtros selecionados.</div>`;
 }
@@ -2770,6 +2867,9 @@ function renderFinanceiro() {
 // um upload pra um Storage (ex: bucket do Supabase) salvo por fatura.
 function renderOverdueBanner() {
   const banner = document.getElementById('overdue-banner');
+  // Nunca mostra esse aviso antes de confirmar dado real — evita mostrar
+  // "fatura vencida" que na verdade ainda não terminou de carregar.
+  if (!faturasSaoReais) { banner.innerHTML = ''; banner.classList.add('hidden'); return; }
   const vencidas = gruposFinanceiro.flatMap(g => g.docs).filter(d => d.status === 'vencido');
   if (vencidas.length === 0) { banner.innerHTML = ''; banner.classList.add('hidden'); return; }
   banner.classList.remove('hidden');
