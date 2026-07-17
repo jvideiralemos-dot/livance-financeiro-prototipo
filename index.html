@@ -1264,10 +1264,9 @@ async function validarSessaoSalva() {
   try {
     const r = await rpc('fn_validar_sessao', { p_token: token });
     if (!r || r.ok !== true) { localStorage.removeItem('livance_token'); return false; }
-    // ATENÇÃO: o formato exato de fn_validar_sessao não foi testado ainda —
-    // assumimos os mesmos campos de fn_login (tipo, clinica_id, clinica_nome,
-    // clinica_cnpj) por serem citados dessa forma no backend do Apps Script.
-    // Se os nomes vierem diferentes, ajustar aqui.
+    // Confirmado: fn_validar_sessao devolve tipo, clinica_id, clinica_nome
+    // e clinica_cnpj (corrigido depois de descobrir que só devolvia tipo
+    // e clinica_id, deixando "Olá, Clínica!" genérico ao restaurar sessão).
     sessao = {
       token,
       tipo: r.tipo,
@@ -1935,6 +1934,14 @@ async function tentarSincronizarOmie(clinicaId, cnpjBruto) {
     });
     if (!salvar.ok) return { ok: false, motivo: 'erro_salvar', erro: salvar.erro };
 
+    // Dispara o histórico completo de faturamento em segundo plano — não
+    // espera terminar (pode demorar), só avisa a Omie/Supabase pra começar.
+    fetch(`${SUPABASE_URL}/functions/v1/sincronizar-financeiro`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ clinica_id: clinicaId })
+    }).catch(() => { /* silencioso — o cron de hora em hora pega depois de qualquer forma */ });
+
     return { ok: true, codigo: cliente.codigo_cliente };
   } catch (e) {
     return { ok: false, motivo: 'erro_conexao', erro: e.message };
@@ -2498,11 +2505,18 @@ async function abrirFinanceiro() {
   renderFinanceiro();
 }
 
-// Botão "Buscar" — força buscar de novo na Omie (ignora o cache), útil se
-// alguma fatura mudou de status desde que a tela abriu.
+// Botão "Buscar" — força sincronizar com a Omie agora (não espera o
+// agendamento de hora em hora) e recarrega da tabela local em seguida.
 async function buscarFinanceiro() {
+  document.getElementById('financeiro-grupos').innerHTML = estadoCarregando('Buscando faturas atualizadas na Omie...');
+  try {
+    await fetch(`${SUPABASE_URL}/functions/v1/sincronizar-financeiro`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ clinica_id: sessao.clinicaId })
+    });
+  } catch (e) { /* mesmo se falhar, tenta mostrar o que já tem no banco */ }
   financeiroCarregamentoPromise = null;
-  document.getElementById('financeiro-grupos').innerHTML = estadoCarregando('Carregando faturas...');
   await garantirFaturasCarregadas();
   renderOverdueBanner();
   renderFinanceiro();
@@ -2515,62 +2529,53 @@ function toggleSelecionarTodasCompetencias(checkbox) {
 
 async function carregarFaturasReaisOmie() {
   try {
-    const cod = await rpc('fn_obter_codigo_cliente_omie', { p_token: sessao.token, p_clinica_id: sessao.clinicaId });
-    if (!cod.ok || !cod.codigo_cliente_omie) {
-      faturasSaoReais = false;
-      return; // clínica ainda não sincronizou — mantém o mock, sem erro pro usuário
-    }
+    const r = await rpc('fn_listar_faturas_omie', { p_token: sessao.token, p_clinica_id: sessao.clinicaId });
+    if (!r.ok || !r.faturas || r.faturas.length === 0) { faturasSaoReais = false; return; }
 
-    const dataDe = '01/01/2026';
-    const daquiADoisMeses = new Date();
-    daquiADoisMeses.setMonth(daquiADoisMeses.getMonth() + 2);
-    const dataAte = String(daquiADoisMeses.getDate()).padStart(2, '0') + '/' +
-      String(daquiADoisMeses.getMonth() + 1).padStart(2, '0') + '/' + daquiADoisMeses.getFullYear();
-
-    const r = await chamarOmieProxy({
-      acao: 'listar_contas_receber',
-      codigo_cliente: cod.codigo_cliente_omie,
-      data_de: dataDe,
-      data_ate: dataAte
-    });
-
-    if (!r.ok || !r.contas) { faturasSaoReais = false; return; }
-
-    // Agrupa por competência (mês de emissão) — cada "documento" dentro do
-    // grupo é um lançamento (conta a receber) daquele mês, com seu próprio
-    // boleto/PDF. Pode ter mais de um lançamento na mesma competência.
+    const nomesTipo = { boleto: 'Boleto', nota_fiscal: 'Nota fiscal', recibo: 'Recibo' };
     const porCompetencia = {};
-    r.contas.forEach(c => {
-      const comp = formatarCompetenciaOmie(c.data_emissao);
-      if (!porCompetencia[comp]) porCompetencia[comp] = [];
-      // O código de integração (ex: "cr3871") compartilha o mesmo número com
-      // a nota fiscal ("nf3871") e o recibo ("re3871") dessa mesma cobrança —
-      // só muda o prefixo de 2 letras. Extrai esse número quando existir.
-      const match = String(c.codigo_lancamento_integracao || '').match(/^[a-z]{2}(\d+)$/i);
-      porCompetencia[comp].push({
-        codigoLancamentoOmie: c.codigo_lancamento_omie,
-        vencimento: c.data_vencimento,
-        valor: c.valor_documento,
-        status: mapearStatusOmie(c.status_titulo),
-        codigoBarras: c.codigo_barras_ficha_compensacao || null,
-        boletoGerado: !!(c.boleto && c.boleto.cGerado === 'S'),
-        numeroBoleto: (c.boleto && c.boleto.cNumBoleto) || null,
-        numeroDocumento: match ? match[1] : null
+
+    r.faturas.forEach(f => {
+      if (!porCompetencia[f.competencia]) porCompetencia[f.competencia] = [];
+      porCompetencia[f.competencia].push({
+        tipo: nomesTipo[f.tipo] || f.tipo,
+        valor: parseFloat(f.valor),
+        vencimento: f.vencimento ? formatarDataISOparaBR(f.vencimento) : '-',
+        status: f.status,
+        numeroExibicao: f.numero_exibicao || '',
+        codigoBarras: f.codigo_barras || null,
+        codigoLancamentoOmie: f.codigo_lancamento_omie || null,
+        nCodOS: f.n_cod_os || null
       });
     });
 
     gruposFinanceiro = Object.keys(porCompetencia).map(comp => {
-      const docs = porCompetencia[comp].sort((a, b) => paraISOBR(b.vencimento).localeCompare(paraISOBR(a.vencimento)));
-      const total = docs.reduce((s, d) => s + d.valor, 0);
-      const status = docs.some(d => d.status === 'vencido') ? 'vencido' : (docs.every(d => d.status === 'pago') ? 'pago' : 'aberto');
-      return { competencia: comp, docs, total, status, marcado: false, aberto: false };
-    }).sort((a, b) => paraISOBR(b.docs[0].vencimento).localeCompare(paraISOBR(a.docs[0].vencimento)));
+      const documentos = porCompetencia[comp];
+      const boletos = documentos.filter(d => d.tipo === 'Boleto');
+      const total = boletos.reduce((s, d) => s + d.valor, 0);
+      const status = boletos.some(d => d.status === 'vencido') ? 'vencido' : (boletos.every(d => d.status === 'pago') ? 'pago' : 'aberto');
+      return { competencia: comp, documentos, documentosCarregados: true, docs: boletos, total, status, marcado: false, aberto: false };
+    }).sort((a, b) => ordenarCompetencia(b.competencia) - ordenarCompetencia(a.competencia));
 
     faturasSaoReais = true;
   } catch (e) {
     faturasSaoReais = false;
-    // silencioso — mantém o mock se a Omie falhar, não trava a tela
+    // silencioso — mantém o mock se o banco falhar, não trava a tela
   }
+}
+
+// Converte "Junho/2026" num número comparável (2026*12+6), pra ordenar.
+function ordenarCompetencia(comp) {
+  const nomesMes = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+  const [mes, ano] = comp.split('/');
+  const idx = nomesMes.indexOf(mes);
+  return (parseInt(ano, 10) || 0) * 12 + (idx >= 0 ? idx : 0);
+}
+
+// Converte "2026-06-10" (formato do banco) -> "10/06/2026" (formato de exibição).
+function formatarDataISOparaBR(dataISO) {
+  const [a, m, d] = dataISO.split('-');
+  return `${d}/${m}/${a}`;
 }
 
 function formatarCompetenciaOmie(dataEmissaoBR) {
@@ -2579,15 +2584,6 @@ function formatarCompetenciaOmie(dataEmissaoBR) {
   if (partes.length !== 3) return dataEmissaoBR;
   const nomesMes = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
   return nomesMes[parseInt(partes[1], 10) - 1] + '/' + partes[2];
-}
-
-// ATENÇÃO: só confirmamos o valor "ATRASADO" num teste real até agora.
-// Ajustar essa lista se aparecer um status_titulo diferente do esperado.
-function mapearStatusOmie(statusTitulo) {
-  const s = (statusTitulo || '').toUpperCase();
-  if (s.includes('PAGO') || s.includes('RECEBID') || s.includes('LIQUIDAD')) return 'pago';
-  if (s.includes('ATRASADO') || s.includes('VENCID')) return 'vencido';
-  return 'aberto';
 }
 
 // Copia o código de barras (já vem pronto na listagem, sem chamada extra).
@@ -2612,17 +2608,17 @@ function baixarArquivoViaProxy(url, nomeArquivo) {
   document.body.removeChild(a);
 }
 
-// Baixa a nota fiscal ou o recibo via StatusOS (mesmo endpoint servicos/os
-// que já funciona sem bloqueio) — tipo é 'nf' ou 're', combinado com o
-// número extraído do código de integração (numeroDocumento).
-async function baixarDocumentoOS(numero, tipo, valorEsperado, btn) {
+// Baixa a nota fiscal ou o recibo via StatusOS, direto pelo nCodOS (que já
+// vem salvo na tabela sincronizada — não precisa mais adivinhar código).
+async function baixarDocumentoOS(nCodOS, tipo, btn) {
+  if (!nCodOS) { alert('Esse documento ainda não está disponível.'); return; }
   const original = btn.innerHTML;
   btn.innerHTML = '<span style="font-size:11px;">Buscando...</span>';
   btn.disabled = true;
   try {
     const param = tipo === 'nf'
-      ? { cCodIntOS: 'nf' + numero, lPdfDemo: true, lPdfDest: true }
-      : { cCodIntOS: 're' + numero, lPdfRecibo: true };
+      ? { nCodOS, lPdfDemo: true, lPdfDest: true }
+      : { nCodOS, lPdfRecibo: true };
     const r = await chamarOmieProxy({ acao: 'chamada_livre', endpoint: 'servicos/os', call: 'StatusOS', param });
     const dados = r.resultado || {};
     let url = null;
@@ -2634,17 +2630,7 @@ async function baixarDocumentoOS(numero, tipo, valorEsperado, btn) {
     }
     if (!url) { alert(tipo === 'nf' ? 'Nota fiscal ainda não emitida pra esse documento.' : 'Recibo ainda não emitido pra esse documento.'); return; }
 
-    // Confere se o valor do documento encontrado bate com o valor dessa
-    // linha — o mesmo "número" pode ter mais de um lançamento na mesma
-    // competência, e a gente não quer abrir o documento errado.
-    const valorEncontrado = parseFloat(dados.nValorTot || 0);
-    const bateValor = Math.abs(valorEncontrado - valorEsperado) < 0.05;
-    if (!bateValor) {
-      alert(`O ${tipo === 'nf' ? 'nota fiscal' : 'recibo'} encontrado é de ${formatarMoeda(valorEncontrado)}, e essa linha é de ${formatarMoeda(valorEsperado)} — deve pertencer a outro lançamento dessa mesma competência. Não foi aberto, pra evitar confusão.`);
-      return;
-    }
-
-    baixarArquivoViaProxy(url, `${tipo === 'nf' ? 'nota_fiscal' : 'recibo'}_${numero}.pdf`);
+    baixarArquivoViaProxy(url, `${tipo === 'nf' ? 'nota_fiscal' : 'recibo'}_${nCodOS}.pdf`);
   } catch (e) {
     alert('Erro ao buscar documento: ' + e.message);
   } finally {
@@ -2688,14 +2674,11 @@ async function baixarPdfsSelecionados() {
 
   const arquivos = []; // { url, nome }
   const nomeSeguro = s => String(s).replace(/[\/\\:*?"<>|]/g, '-');
-
-  // Busca tudo em paralelo (boletos + NF/Recibo de todos os grupos
-  // marcados de uma vez), bem mais rápido que buscar um por vez.
   const buscas = [];
 
   for (const g of gruposMarcados) {
-    for (const d of g.docs) {
-      if (d.codigoLancamentoOmie) {
+    for (const d of g.documentos) {
+      if (d.tipo === 'Boleto' && d.codigoLancamentoOmie) {
         buscas.push(
           chamarOmieProxy({
             acao: 'chamada_livre', endpoint: 'financas/contareceberboleto', call: 'ObterBoleto',
@@ -2706,40 +2689,29 @@ async function baixarPdfsSelecionados() {
             }
           }).catch(() => {})
         );
+      } else if (d.tipo === 'Nota fiscal' && d.nCodOS) {
+        buscas.push(
+          chamarOmieProxy({
+            acao: 'chamada_livre', endpoint: 'servicos/os', call: 'StatusOS',
+            param: { nCodOS: d.nCodOS, lPdfDemo: true, lPdfDest: true }
+          }).then(r => {
+            const dados = r.resultado || {};
+            const rps = dados.ListaRpsNfse && dados.ListaRpsNfse[0];
+            const url = rps && (rps.cUrlPdfDest || rps.cUrlPdfDemo);
+            if (url) arquivos.push({ url, nome: nomeSeguro(`nota_fiscal_${g.competencia}_${d.nCodOS}.pdf`) });
+          }).catch(() => {})
+        );
+      } else if (d.tipo === 'Recibo' && d.nCodOS) {
+        buscas.push(
+          chamarOmieProxy({
+            acao: 'chamada_livre', endpoint: 'servicos/os', call: 'StatusOS',
+            param: { nCodOS: d.nCodOS, lPdfRecibo: true }
+          }).then(r => {
+            const dados = r.resultado || {};
+            if (dados.cUrlPdfRecibo) arquivos.push({ url: dados.cUrlPdfRecibo, nome: nomeSeguro(`recibo_${g.competencia}_${d.nCodOS}.pdf`) });
+          }).catch(() => {})
+        );
       }
-    }
-
-    // Números distintos do grupo — busca cada um só 1 vez, e casa o
-    // documento achado com QUALQUER lançamento do grupo que tenha o
-    // mesmo valor (a NF e o Recibo às vezes são de lançamentos diferentes).
-    const numeros = [...new Set(g.docs.map(d => d.numeroDocumento).filter(Boolean))];
-    for (const numero of numeros) {
-      buscas.push(
-        chamarOmieProxy({
-          acao: 'chamada_livre', endpoint: 'servicos/os', call: 'StatusOS',
-          param: { cCodIntOS: 'nf' + numero, lPdfDemo: true, lPdfDest: true }
-        }).then(r => {
-          const dados = r.resultado || {};
-          const rps = dados.ListaRpsNfse && dados.ListaRpsNfse[0];
-          const url = rps && (rps.cUrlPdfDest || rps.cUrlPdfDemo);
-          const valor = parseFloat(dados.nValorTot || 0);
-          if (url && g.docs.some(d => Math.abs(d.valor - valor) < 0.05)) {
-            arquivos.push({ url, nome: nomeSeguro(`nota_fiscal_${g.competencia}_${numero}.pdf`) });
-          }
-        }).catch(() => {})
-      );
-      buscas.push(
-        chamarOmieProxy({
-          acao: 'chamada_livre', endpoint: 'servicos/os', call: 'StatusOS',
-          param: { cCodIntOS: 're' + numero, lPdfRecibo: true }
-        }).then(r => {
-          const dados = r.resultado || {};
-          const valor = parseFloat(dados.nValorTot || 0);
-          if (dados.cUrlPdfRecibo && g.docs.some(d => Math.abs(d.valor - valor) < 0.05)) {
-            arquivos.push({ url: dados.cUrlPdfRecibo, nome: nomeSeguro(`recibo_${g.competencia}_${numero}.pdf`) });
-          }
-        }).catch(() => {})
-      );
     }
   }
 
@@ -2763,120 +2735,12 @@ async function baixarPdfsSelecionados() {
   document.body.removeChild(a);
 }
 
-async function toggleGrupoAberto(competencia) {
+function toggleGrupoAberto(competencia) {
   const g = gruposFinanceiro.find(x => x.competencia === competencia);
   if (!g) return;
   g.aberto = !g.aberto;
   renderFinanceiro();
-  if (g.aberto && !g.documentosCarregados) {
-    await carregarDocumentosGrupo(g);
-    renderFinanceiro();
-  }
 }
-
-// Monta 1 linha por documento (Boleto sempre; Nota fiscal e Recibo só se
-// achar e o valor bater com o lançamento) — busca só quando a competência
-// é aberta pela primeira vez, não pra todas de uma vez.
-async function carregarDocumentosGrupo(g, forcarAtualizacao) {
-  // Cache local (por clínica + competência) — evita bater na Omie de novo
-  // se já buscamos antes; é raro cancelar nota/recibo/boleto de mês
-  // anterior, então só busca de novo se a pessoa pedir explicitamente.
-  const chaveCache = `financeiro_docs:${sessao.clinicaId}:${g.competencia}`;
-  if (!forcarAtualizacao) {
-    try {
-      const emCache = localStorage.getItem(chaveCache);
-      if (emCache) {
-        g.documentos = JSON.parse(emCache);
-        g.documentosCarregados = true;
-        return;
-      }
-    } catch (e) { /* cache corrompido ou indisponível — segue buscando normal */ }
-  }
-
-  const documentos = [];
-
-  // 1) Uma linha de Boleto pra cada lançamento (sempre existe).
-  for (const d of g.docs) {
-    documentos.push({
-      tipo: 'Boleto', valor: d.valor, vencimento: d.vencimento, status: d.status,
-      codigoBarras: d.codigoBarras, codigoLancamentoOmie: d.codigoLancamentoOmie,
-      numeroExibicao: d.numeroBoleto || ''
-    });
-  }
-
-  // 2) Números distintos usados nesse grupo.
-  const numeros = [...new Set(g.docs.map(d => d.numeroDocumento).filter(Boolean))];
-
-  // 3) Busca NF e Recibo — em SEQUÊNCIA, não em paralelo. A Omie só deixa
-  // 1 chamada por vez do mesmo método rodando ("já existe uma requisição
-  // desse método sendo executada"); em paralelo, algumas chamadas falhavam
-  // silenciosamente e pareciam "não achou nada" quando na verdade só
-  // bateram nesse limite.
-  const resultados = [];
-  for (const numero of numeros) {
-    try {
-      const rNf = await chamarOmieProxy({
-        acao: 'chamada_livre', endpoint: 'servicos/os', call: 'StatusOS',
-        param: { cCodIntOS: 'nf' + numero, lPdfDemo: true, lPdfDest: true }
-      });
-      resultados.push({ tipoBusca: 'nf', numero, resultado: rNf.resultado || {} });
-    } catch (e) { /* segue sem essa NF */ }
-
-    try {
-      const rRe = await chamarOmieProxy({
-        acao: 'chamada_livre', endpoint: 'servicos/os', call: 'StatusOS',
-        param: { cCodIntOS: 're' + numero, lPdfRecibo: true }
-      });
-      resultados.push({ tipoBusca: 're', numero, resultado: rRe.resultado || {} });
-    } catch (e) { /* segue sem esse recibo */ }
-  }
-
-  // 4) Casa cada documento achado com QUALQUER lançamento do grupo que
-  // tenha o mesmo valor — não necessariamente o que carregava o código,
-  // porque a NF e o Recibo às vezes pertencem a lançamentos diferentes
-  // dentro da mesma competência.
-  for (const item of resultados) {
-    let existe = false, valorEncontrado = 0, numeroExibicao = '';
-    if (item.tipoBusca === 'nf') {
-      const rps = item.resultado.ListaRpsNfse && item.resultado.ListaRpsNfse[0];
-      existe = !!rps;
-      valorEncontrado = parseFloat(item.resultado.nValorTot || 0);
-      numeroExibicao = (rps && rps.nNfse) || '';
-    } else {
-      existe = !!item.resultado.cUrlPdfRecibo;
-      valorEncontrado = parseFloat(item.resultado.nValorTot || 0);
-      numeroExibicao = item.resultado.cNumRecibo || '';
-    }
-    if (!existe) continue;
-
-    const bateComAlgumLancamento = g.docs.some(d => Math.abs(d.valor - valorEncontrado) < 0.05);
-    if (!bateComAlgumLancamento) continue;
-
-    documentos.push({
-      tipo: item.tipoBusca === 'nf' ? 'Nota fiscal' : 'Recibo',
-      valor: valorEncontrado, vencimento: '-',
-      status: item.tipoBusca === 'nf' ? 'emitida' : 'emitido',
-      numeroDocumento: item.numero, numeroExibicao
-    });
-  }
-
-  g.documentos = documentos;
-  g.documentosCarregados = true;
-  try { localStorage.setItem(chaveCache, JSON.stringify(documentos)); } catch (e) { /* localStorage cheio/indisponível — sem problema, só não guarda cache */ }
-}
-
-// Ignora o cache e busca de novo na Omie — usa quando desconfiar que algo
-// mudou (nota cancelada, boleto reemitido, etc).
-async function atualizarDocumentosGrupo(competencia, event) {
-  if (event) event.stopPropagation();
-  const g = gruposFinanceiro.find(x => x.competencia === competencia);
-  if (!g) return;
-  g.documentosCarregados = false;
-  renderFinanceiro();
-  await carregarDocumentosGrupo(g, true);
-  renderFinanceiro();
-}
-
 
 function toggleGrupoMarcado(competencia, event) {
   event.stopPropagation();
@@ -2916,10 +2780,7 @@ function renderFinanceiro() {
         !g.documentosCarregados
           ? `<div style="border-top:1px solid var(--line);">${estadoCarregando('Carregando documentos...')}</div>`
           : `
-        <div style="border-top:1px solid var(--line); padding:8px 18px; text-align:right;">
-          <span class="action-link" onclick="atualizarDocumentosGrupo('${g.competencia}', event)" style="font-size:12px; cursor:pointer; color:var(--text-faint);">↻ Atualizar essa competência</span>
-        </div>
-        <table>
+        <table style="border-top:1px solid var(--line);">
           <thead><tr><th style="padding-left:48px;">Documento</th><th>Nº do documento</th><th>Valor</th><th>Vencimento</th><th>Status</th><th style="text-align:right; padding-right:18px;">Ações</th></tr></thead>
           <tbody>
             ${g.documentos.map(d => `
@@ -2934,7 +2795,7 @@ function renderFinanceiro() {
                     <button class="btn" style="padding:5px 10px; font-size:12px;" onclick="baixarPdfDoc(${d.codigoLancamentoOmie || 'null'}, this)">↓ Baixar</button>
                     ${d.codigoBarras ? `<button class="btn" style="padding:5px 10px; font-size:12px; margin-left:6px;" onclick="copiarCodigoBarras('${d.codigoBarras}', this)">Copiar código</button>` : ''}
                   ` : `
-                    <button class="btn" style="padding:5px 10px; font-size:12px;" onclick="baixarDocumentoOS('${d.numeroDocumento}', '${d.tipo === 'Nota fiscal' ? 'nf' : 're'}', ${d.valor}, this)">↓ Baixar</button>
+                    <button class="btn" style="padding:5px 10px; font-size:12px;" onclick="baixarDocumentoOS(${d.nCodOS || 'null'}, '${d.tipo === 'Nota fiscal' ? 'nf' : 're'}', this)">↓ Baixar</button>
                   `}
                 </td>
               </tr>
