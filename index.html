@@ -455,7 +455,7 @@
     </div>
 
     <div id="login-fields-clinica">
-      <div class="login-field"><label>CNPJ</label><input type="text" id="login-clinica-usuario" placeholder="12.345.678/0001-90"></div>
+      <div class="login-field"><label>CNPJ</label><input type="text" id="login-clinica-usuario"></div>
       <div class="login-field">
         <label>Senha</label>
         <div style="position:relative;">
@@ -485,7 +485,7 @@
         });
       });
     </script>
-    <div class="login-foot" id="login-foot-text">Ambiente do corpo clínico cadastrado na Livance.<br>Conectado à base real da Livance.</div>
+    <div class="login-foot" id="login-foot-text">Ambiente do corpo clínico cadastrado na Livance.</div>
   </div>
 </div>
 
@@ -1193,8 +1193,8 @@ function setProfileTab(perfil) {
   document.getElementById('login-fields-clinica').classList.toggle('hidden', perfil !== 'clinica');
   document.getElementById('login-fields-gestor').classList.toggle('hidden', perfil !== 'gestor');
   document.getElementById('login-foot-text').innerHTML = perfil === 'clinica'
-    ? 'Ambiente do corpo clínico cadastrado na Livance.<br>Conectado à base real da Livance.'
-    : 'Ambiente interno de gestão financeira da Livance.<br>Conectado à base real da Livance.';
+    ? 'Ambiente do corpo clínico cadastrado na Livance.'
+    : 'Ambiente interno de gestão financeira da Livance.';
 }
 
 function alternarSenhaVisivel(inputId, icone) {
@@ -1403,7 +1403,7 @@ async function carregarTudoDaClinica() {
   document.getElementById('movimentacao-table').innerHTML = `<tr><td colspan="99">${estadoCarregando('Carregando movimentações...')}</td></tr>`;
 
   await Promise.all([
-    carregarMembros(),
+    carregarMembros(true),
     carregarSolicitacoes(),
     (async () => {
       try {
@@ -1431,7 +1431,7 @@ function nomeExibicao(m) {
   return m.nome_cache || '(cadastro pendente de sincronização)';
 }
 
-async function carregarMembros() {
+async function carregarMembros(pularRenderOverview) {
   try {
     const r = await rpc('fn_listar_membros', { p_token: sessao.token, p_clinica_id: sessao.clinicaId });
     if (!r.ok) { alert(r.erro || 'Erro ao carregar profissionais.'); membros = []; }
@@ -1442,7 +1442,7 @@ async function carregarMembros() {
   }
   renderMedicos();
   populateFiltroMedico();
-  renderOverview();
+  if (!pularRenderOverview) renderOverview();
 }
 
 function statusPill(ativo) {
