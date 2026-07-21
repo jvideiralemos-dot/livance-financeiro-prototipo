@@ -1068,6 +1068,7 @@ let perfilAtivo = 'clinica';
 // (conta a receber) da Omie — que já vem com seu próprio boleto/PDF.
 let gruposFinanceiro = [];
 let faturasSaoReais = false;
+let faturasCarregadas = false; // true assim que a busca terminar, mesmo se vier vazia
 let financeiroCarregamentoPromise = null; // evita disparar a busca 2x ao mesmo tempo
 
 // Garante que a busca na Omie rodou (ou está rodando) — chama de qualquer
@@ -1417,6 +1418,7 @@ async function carregarTudoDaClinica() {
 
   gruposFinanceiro = [];
   faturasSaoReais = false;
+  faturasCarregadas = false;
   financeiroCarregamentoPromise = null;
   renderOverdueBanner(); // nada aparece ainda — só depois que a Omie confirmar
   garantirFaturasCarregadas(); // dispara em segundo plano, sem travar a entrada no portal
@@ -1975,6 +1977,7 @@ async function sincronizarTodasComOmie() {
     (comErro ? `✗ Com erro de conexão: ${comErro}\n` : '')
   );
   await carregarClinicasLista();
+  await carregarClinicasGestor();
 }
 
 async function sincronizarComOmie() {
@@ -1992,6 +1995,7 @@ async function sincronizarComOmie() {
     erroEl.classList.remove('hidden');
   } else {
     await carregarCodigoClienteOmie(clinicaEditandoId);
+    await carregarClinicasGestor();
   }
   btn.disabled = false;
   btn.textContent = 'Sincronizar com Omie';
@@ -2030,9 +2034,12 @@ async function salvarClinica() {
       return;
     }
     alert('Dados salvos com sucesso.');
-    if (sessao.tipo === 'gestor') await carregarClinicasLista();
+    if (sessao.tipo === 'gestor') {
+      await carregarClinicasLista();
+      await carregarClinicasGestor();
+    }
   } catch (e) {
-    erroEl.textContent = 'Essa ação depende da função fn_atualizar_clinica, que ainda não existe no banco (só existe fn_criar_clinica). Erro: ' + e.message;
+    erroEl.textContent = 'Erro de conexão ao salvar: ' + e.message;
     erroEl.classList.remove('hidden');
   } finally {
     btn.disabled = false;
@@ -2135,6 +2142,7 @@ async function salvarNovaClinica() {
     }
 
     await carregarClinicasLista();
+    await carregarClinicasGestor();
   } catch (e) {
     erroEl.textContent = 'Erro de conexão: ' + e.message;
     erroEl.classList.remove('hidden');
@@ -2422,7 +2430,7 @@ function renderOverview() {
     else if (tipo === 'nota_fiscal') { totaisPorMedico[cod].nf += valor; totalNfGeral += valor; }
   });
 
-  document.getElementById('overview-table').innerHTML = ativos.slice(0, 5).map(m => {
+  document.getElementById('overview-table').innerHTML = ativos.map(m => {
     const t = totaisPorMedico[String(m.cod_usuario)] || { fatura: 0, nf: 0 };
     return `
       <tr>
@@ -2497,7 +2505,7 @@ function faturasFiltradas() {
    ===================================================================== */
 
 async function abrirFinanceiro() {
-  if (!faturasSaoReais) {
+  if (!faturasCarregadas) {
     document.getElementById('financeiro-grupos').innerHTML = estadoCarregando('Carregando faturas...');
   }
   await garantirFaturasCarregadas();
@@ -2523,7 +2531,16 @@ function toggleSelecionarTodasCompetencias(checkbox) {
 async function carregarFaturasReaisOmie() {
   try {
     const r = await rpc('fn_listar_faturas_omie', { p_token: sessao.token, p_clinica_id: sessao.clinicaId });
-    if (!r.ok || !r.faturas || r.faturas.length === 0) { faturasSaoReais = false; return; }
+    faturasCarregadas = true; // terminou de tentar, independente do resultado
+
+    if (!r.ok || !r.faturas) { faturasSaoReais = false; gruposFinanceiro = []; return; }
+    if (r.faturas.length === 0) {
+      // Sincronizado, mas realmente não há nenhuma fatura ainda (ex: clínica
+      // nova sem faturamento criado na Omie) — não é "carregando", é "vazio".
+      faturasSaoReais = true;
+      gruposFinanceiro = [];
+      return;
+    }
 
     const nomesTipo = { boleto: 'Boleto', nota_fiscal: 'Nota fiscal', recibo: 'Recibo' };
     const porCompetencia = {};
@@ -2552,8 +2569,10 @@ async function carregarFaturasReaisOmie() {
 
     faturasSaoReais = true;
   } catch (e) {
+    faturasCarregadas = true;
     faturasSaoReais = false;
-    // silencioso — mantém o mock se o banco falhar, não trava a tela
+    gruposFinanceiro = [];
+    // silencioso — não trava a tela
   }
 }
 
@@ -2734,10 +2753,18 @@ function renderFinanceiro() {
   const algumMarcado = gruposFinanceiro.some(g => g.marcado);
   btnBaixar.disabled = !algumMarcado || !faturasSaoReais;
 
+  if (!faturasCarregadas) {
+    document.getElementById('financeiro-grupos').innerHTML = estadoCarregando('Carregando faturas...');
+    return;
+  }
+
   if (!faturasSaoReais) {
-    document.getElementById('financeiro-grupos').innerHTML = gruposFinanceiro.length === 0
-      ? estadoCarregando('Carregando faturas...')
-      : '<div class="empty-state">Essa clínica ainda não está sincronizada com a Omie — sincronize no Cadastro pra ver as faturas.</div>';
+    document.getElementById('financeiro-grupos').innerHTML = '<div class="empty-state">Essa clínica ainda não está sincronizada com a Omie. Sincronize no Cadastro pra ver as faturas.</div>';
+    return;
+  }
+
+  if (gruposFinanceiro.length === 0) {
+    document.getElementById('financeiro-grupos').innerHTML = '<div class="empty-state">Nenhuma fatura encontrada pra essa clínica no período. Se ela acabou de ser cadastrada, pode levar até 1 hora pro primeiro faturamento aparecer aqui.</div>';
     return;
   }
 
