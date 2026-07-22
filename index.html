@@ -2864,12 +2864,25 @@ function gerarRelatorio() {
     else if (tipo === 'nota_fiscal') totais[cod].nf += valor;
   });
 
+  // Quem entra no relatório:
+  //  - qualquer membro que teve movimentação no período (mesmo que zerada);
+  //  - todo membro ativo hoje, mesmo sem nenhuma movimentação;
+  //  - membros já inativados, desde que a data de corte seja igual ou
+  //    posterior ao início do período (ou seja: ainda estavam ativos em
+  //    parte do intervalo filtrado).
+  // Antes existia um filtro que descartava quem ficasse com fatura e NF
+  // zeradas — era ele que sumia com os membros sem movimentação.
   ultimoRelatorio = membros
+    .filter(m => {
+      if (totais[String(m.cod_usuario)]) return true;
+      if (m.ativo_local) return true;
+      if (m.data_corte) return String(m.data_corte).slice(0, 10) >= dIni;
+      return false;
+    })
     .map(m => {
       const t = totais[String(m.cod_usuario)] || { fatura: 0, nf: 0 };
       return { medico: nomeExibicao(m), especialidade: m.especialidade_cache || '--', fatura: t.fatura, nf: t.nf, total: t.fatura + t.nf };
-    })
-    .filter(r => r.fatura !== 0 || r.nf !== 0);
+    });
 
   document.getElementById('relatorio-table').innerHTML = ultimoRelatorio.map((r, i) => `
     <tr>
@@ -2909,16 +2922,21 @@ async function carregarSolicitacoes() {
 }
 
 function renderTickets() {
+  const isGestor = sessao.tipo === 'gestor';
   const list = document.getElementById('tickets-items');
   if (solicitacoes.length === 0) {
     list.innerHTML = `<div class="empty-chat" style="padding:32px 18px;">Nenhum chamado ainda. Clique em "+ Nova" pra abrir o primeiro.</div>`;
   } else {
+    // Pro gestor, o que importa bater o olho é DE QUEM veio o chamado, então a
+    // clínica vira o título e o assunto fica embaixo. Pra própria clínica não
+    // faz sentido repetir o nome dela em toda linha — ali o título é o assunto.
     list.innerHTML = solicitacoes.map(t => `
       <div class="ticket-item ${t.id === solicitacaoAtivaId ? 'active' : ''}" onclick="abrirTicket('${t.id}')">
         <div class="ticket-top">
-          <span class="ticket-subject">${t.assunto}</span>
+          <span class="ticket-subject">${isGestor ? (t.clinica_nome || 'Clínica não identificada') : t.assunto}</span>
           <span class="status-tag ${t.status}">${statusSolicitacaoLabel(t.status)}</span>
         </div>
+        ${isGestor ? `<div class="ticket-preview">${t.assunto}</div>` : ''}
         <div class="ticket-meta">${formatarDataHora(t.created_at)}</div>
       </div>
     `).join('');
@@ -2960,13 +2978,18 @@ function statusSolicitacaoLabel(status) {
 
 function renderChat(t, mensagens) {
   const wrap = document.getElementById('ticket-chat');
+  const isGestor = sessao.tipo === 'gestor';
   const podeEnviar = t.status !== 'resolvida';
-  const podeEncerrar = sessao.tipo === 'gestor' && t.status !== 'resolvida';
+  const podeEncerrar = isGestor && t.status !== 'resolvida';
+  // Rótulo do lado "clínica" na conversa: pro gestor mostra o nome real de quem
+  // abriu; pra própria clínica continua genérico ("Você" faria mais sentido que
+  // repetir o nome dela a cada balão).
+  const rotuloClinica = isGestor ? (t.clinica_nome || 'Clínica') : 'Clínica';
   wrap.innerHTML = `
     <div class="ticket-chat-header">
       <div class="ticket-chat-subject">${t.assunto}</div>
       <div class="ticket-chat-tags">
-        <span class="status-tag ${t.status}">${statusSolicitacaoLabel(t.status)}</span> aberto em ${formatarDataHora(t.created_at)}
+        ${isGestor && t.clinica_nome ? `<b style="color:var(--petrol-dark)">${t.clinica_nome}</b> · ` : ''}<span class="status-tag ${t.status}">${statusSolicitacaoLabel(t.status)}</span> aberto em ${formatarDataHora(t.created_at)}
         ${podeEncerrar ? `<span class="action-link" style="margin-left:10px" onclick="encerrarSolicitacao('${t.id}')">Marcar como resolvida</span>` : ''}
       </div>
     </div>
@@ -2974,7 +2997,7 @@ function renderChat(t, mensagens) {
       ${mensagens.map(m => `
         <div class="chat-msg ${m.autor === 'clinica' ? 'clinica' : 'gestao'}">
           <div class="chat-bubble">${m.texto}</div>
-          <div class="chat-meta">${m.autor === 'clinica' ? 'Clínica' : 'Livance'} · ${formatarDataHora(m.created_at)}</div>
+          <div class="chat-meta">${m.autor === 'clinica' ? rotuloClinica : 'Livance'} · ${formatarDataHora(m.created_at)}</div>
         </div>
       `).join('') || '<div class="empty-chat">Sem mensagens ainda.</div>'}
     </div>
