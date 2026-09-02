@@ -2561,10 +2561,18 @@ async function carregarFaturasReaisOmie() {
 
     gruposFinanceiro = Object.keys(porCompetencia).map(comp => {
       const documentos = porCompetencia[comp];
+      // `docs` é o que a lista/os filtros consomem: precisa conter TODOS os
+      // documentos (boleto, nota fiscal e recibo), não só boletos — era esse o
+      // filtro que fazia NF e recibo sumirem da tela.
       const boletos = documentos.filter(d => d.tipo === 'Boleto');
-      const total = boletos.reduce((s, d) => s + d.valor, 0);
-      const status = boletos.some(d => d.status === 'vencido') ? 'vencido' : (boletos.every(d => d.status === 'pago') ? 'pago' : 'aberto');
-      return { competencia: comp, documentos, documentosCarregados: true, docs: boletos, total, status, marcado: false, aberto: false };
+      // Total e status representam a COBRANÇA em si, então continuam baseados no
+      // boleto — somar boleto + NF + recibo contaria o mesmo valor mais de uma
+      // vez (NF e boleto são o mesmo débito em documentos diferentes). Se não
+      // houver boleto na competência, cai pro conjunto de documentos existente.
+      const baseValor = boletos.length ? boletos : documentos;
+      const total = baseValor.reduce((s, d) => s + d.valor, 0);
+      const status = baseValor.some(d => d.status === 'vencido') ? 'vencido' : (baseValor.every(d => d.status === 'pago') ? 'pago' : 'aberto');
+      return { competencia: comp, documentos, documentosCarregados: true, docs: documentos, total, status, marcado: false, aberto: false };
     }).sort((a, b) => ordenarCompetencia(b.competencia) - ordenarCompetencia(a.competencia));
 
     faturasSaoReais = true;
@@ -2820,7 +2828,10 @@ function renderOverdueBanner() {
   // Nunca mostra esse aviso antes de confirmar dado real — evita mostrar
   // "fatura vencida" que na verdade ainda não terminou de carregar.
   if (!faturasSaoReais) { banner.innerHTML = ''; banner.classList.add('hidden'); return; }
-  const vencidas = gruposFinanceiro.flatMap(g => g.docs).filter(d => d.status === 'vencido');
+  // Conta só boletos vencidos: a NF/recibo da mesma cobrança compartilham o
+  // status, então contar todos os documentos inflaria o número de "faturas
+  // vencidas" (contaria a mesma cobrança 2-3 vezes).
+  const vencidas = gruposFinanceiro.flatMap(g => g.docs).filter(d => d.tipo === 'Boleto' && d.status === 'vencido');
   if (vencidas.length === 0) { banner.innerHTML = ''; banner.classList.add('hidden'); return; }
   banner.classList.remove('hidden');
   banner.onclick = () => setView('financeiro');
