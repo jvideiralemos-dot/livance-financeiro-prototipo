@@ -2249,10 +2249,48 @@ async function carregarMovimentacaoBruta() {
   }
 }
 
+// Dada a data de um uso e o dia de vencimento do médico, calcula a COMPETÊNCIA
+// (ano-mês do vencimento da fatura em que esse uso cai). Regra confirmada com a
+// Joana: a fatura fecha 2 dias ANTES do vencimento, e o período de uso vai do
+// dia seguinte ao fechamento anterior até o fechamento atual.
+//   Ex vencimento dia 5: vence 05/09 -> fecha 03/09 -> período 04/08 a 03/09.
+//   Ex vencimento dia 1: vence 01/09 -> fecha 30/08 -> período 31/07 a 30/08.
+// Testa a fatura que vence no mês do uso e as vizinhas, e vê em qual janela
+// (fechAnterior, fechAtual] a data cai. Funciona pra qualquer dia (1, 5, 20...).
+// Retorna 'AAAA-MM' ou null se não der pra calcular.
+const DIAS_ANTES_FECHAMENTO = 2;
+function fechamentoDoVencimento(ano, mesIdx, dia) {
+  // Date normaliza viradas de mês (ex: dia 1 - 2 = último dia do mês anterior).
+  return new Date(ano, mesIdx, dia - DIAS_ANTES_FECHAMENTO);
+}
+function competenciaPorJanela(dataUsoISO, diaVencimento) {
+  const dia = parseInt(diaVencimento, 10);
+  if (!dia || dia < 1 || dia > 31) return null;
+  const d = new Date(dataUsoISO + 'T00:00:00');
+  if (isNaN(d.getTime())) return null;
+
+  const anoU = d.getFullYear();
+  const mesU = d.getMonth();
+  for (let off = 0; off <= 2; off++) {
+    const venc = new Date(anoU, mesU + off, 1);
+    const fechAtual = fechamentoDoVencimento(venc.getFullYear(), venc.getMonth(), dia);
+    const vencAnt = new Date(venc.getFullYear(), venc.getMonth() - 1, 1);
+    const fechAnt = fechamentoDoVencimento(vencAnt.getFullYear(), vencAnt.getMonth(), dia);
+    if (d > fechAnt && d <= fechAtual) {
+      return venc.getFullYear() + '-' + String(venc.getMonth() + 1).padStart(2, '0');
+    }
+  }
+  return null;
+}
+
 // Aplica o filtro de médico + a regra de "some depois da data de corte" (pra
-// quem foi inativado), e agrupa o resultado pela fatura real
-// (`datavencimentofatura`). Quem ainda não tem fatura fechada cai no grupo
-// especial "aberto".
+// quem foi inativado), e agrupa por COMPETÊNCIA (mês do vencimento).
+//   - Lançamento COM `datavencimentofatura` do banco -> usa o mês dela (fluxo
+//     normal, mantém o dado real que a Joana anotou ser mais confiável).
+//   - Lançamento SEM (caso Porto Seguro, sem codcobranca) -> calcula pela
+//     janela do dia de vencimento do médico (`diavencimentomembro`).
+// Cada médico respeita a SUA janela mesmo na visão "todos". Aba rotulada só
+// com o mês (SET, AGO, JUL...).
 function recalcularPeriodosEexibir() {
   const fCod = document.getElementById('filtro-medico').value;
 
@@ -2265,26 +2303,26 @@ function recalcularPeriodosEexibir() {
     if (!membro) return true;
     const dataMov = String(r.datamovimentacao).slice(0, 10);
 
-    // Inativo agora, com data de corte: esconde tudo depois do corte
-    // (ainda não tem fim definido pro buraco).
     if (!membro.ativo_local && membro.data_corte) {
       return dataMov <= String(membro.data_corte).slice(0, 10);
     }
-
-    // Ativo de novo, mas já teve uma pausa no passado: esconde só o
-    // intervalo entre a inativação e a reativação (o "buraco").
     if (membro.ativo_local && membro.data_corte && membro.data_reativacao) {
       const corte = String(membro.data_corte).slice(0, 10);
       const reativacao = String(membro.data_reativacao).slice(0, 10);
       return !(dataMov > corte && dataMov < reativacao);
     }
-
     return true;
   });
 
   const grupos = {};
   linhas.forEach(r => {
-    const chave = r.datavencimentofatura ? String(r.datavencimentofatura).slice(0, 10) : 'aberto';
+    let chave;
+    if (r.datavencimentofatura) {
+      chave = String(r.datavencimentofatura).slice(0, 7); // AAAA-MM do banco
+    } else {
+      const dataMov = String(r.datamovimentacao).slice(0, 10);
+      chave = competenciaPorJanela(dataMov, r.diavencimentomembro) || 'aberto';
+    }
     (grupos[chave] = grupos[chave] || []).push(r);
   });
 
@@ -2293,25 +2331,13 @@ function recalcularPeriodosEexibir() {
 
   meses = todasAsChaves.map(k => {
     if (k === 'aberto') {
-      const membro = fCod !== 'todos' ? membros.find(m => String(m.cod_usuario) === String(fCod)) : null;
-      const dia = (membro && membro.dia_fechamento_cache) || DIA_FECHAMENTO_PADRAO;
-      const hoje = new Date();
-      const fechamentoDesteMes = new Date(hoje.getFullYear(), hoje.getMonth(), dia);
-      const proximoFechamento = (hoje > fechamentoDesteMes)
-        ? new Date(hoje.getFullYear(), hoje.getMonth() + 1, dia)
-        : fechamentoDesteMes;
-      return {
-        key: 'aberto',
-        label: String(proximoFechamento.getDate()).padStart(2, '0') + ' ' + MESES_PT[proximoFechamento.getMonth()],
-        sub: '(ABERTA · estimado)',
-        rows: grupos[k]
-      };
+      return { key: 'aberto', label: 'EM ABERTO', sub: '', rows: grupos[k] };
     }
-    const [ano, mes, dia] = k.split('-').map(Number);
+    const [ano, mes] = k.split('-').map(Number);
     return {
       key: k,
-      label: String(dia).padStart(2, '0') + ' ' + MESES_PT[mes - 1],
-      sub: '',
+      label: MESES_PT[mes - 1],    // só o mês: SET, AGO, JUL...
+      sub: String(ano).slice(-2),  // ano curto embaixo, evita confundir anos
       rows: grupos[k]
     };
   });
