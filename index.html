@@ -2243,6 +2243,12 @@ async function carregarMovimentacaoBruta() {
     }
     movimentacoesCache[cacheKey] = r.movimentacoes || [];
     movimentacoesBrutas = movimentacoesCache[cacheKey];
+    console.log('DIAG movimentacoes recebidas:', movimentacoesBrutas.length);
+    if (movimentacoesBrutas.length > 0) {
+      console.log('DIAG exemplo linha:', JSON.stringify(movimentacoesBrutas[0]));
+      console.log('DIAG tem datavencimentofatura?', movimentacoesBrutas[0].datavencimentofatura);
+      console.log('DIAG tem diavencimentomembro?', movimentacoesBrutas[0].diavencimentomembro);
+    }
     recalcularPeriodosEexibir();
   } catch (e) {
     tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state">Erro de conexão: ${e.message}</div></td></tr>`;
